@@ -1,3 +1,4 @@
+#embeddings.py
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
@@ -65,8 +66,8 @@ if __name__ == '__main__':
     query = "What embedding model should I use if I'm just doing English on CPU?"
     results = run_test(query, past_messages, top_k=5)
 
-    print("\n🔍 Query:", query)
-    print("\n📥 Top Matches:")
+    print("\nQuery:", query)
+    print("\nTop Matches:")
     print("hi :)")
     for i, r in enumerate(results, 1):
         print(f"{i}. {r}")
