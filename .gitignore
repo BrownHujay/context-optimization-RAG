@@ -17,6 +17,7 @@ public/
 package-lock.json
 
 # Editor directories and files
+.env
 .vscode/*
 !.vscode/extensions.json
 .idea
