@@ -1,63 +1,89 @@
-5/30/25, 3 PM
-todo: 
-- setup reranking (with qwen)
-- setup summarization
-- setup mongodb (ish)
-- setup api for frontend
-- setup qwen locally
-- setup llm either locally or openai api
+# Chat Thingy
 
-done:
-- setup vectorstore to find using similarity and db
-- base backend api
-- database to store messages
+A modern chat application with advanced RAG (Retrieval Augmented Generation) capabilities and a React-based frontend.
 
-next step:
-- qwen reranking and embedding
-- test the embeds
-- summarization
-- mongodb
-- setup llm
-- api for frontend
-- better logic for saving
-- frontend
+## Project Overview
 
-nice to haves:
-- animations: if deepseek, "thinking..." 
-- view the bacakend thinking process
-- stats
+Chat Thingy is a comprehensive chat application that combines:
 
-5/31/25, 12:49 AM
-todo: 
-- setup mongodb
-- setup api for frontend
-- setup llm either locally or openai api
-- frontend
+- **Frontend**: React 19 with TypeScript, Tailwind CSS, and Three.js for animations
+- **Backend**: Custom API with vector-based search and embedding capabilities
+- **Retrieval System**: Advanced RAG with reranking and embedding for intelligent message retrieval
+- **Database**: Local storage with planned MongoDB integration
 
+## How It Works
 
-done:
-- setup vectorstore to find using similarity and db
-- base backend api
-- database to store messages
-- reranking and embedding
-- testing
-- chat and user wide search
+The application uses a sophisticated retrieval system to find relevant information:
 
-next step:
-- mongodb save and stuff
-- api for frontend
-- llm
-- frontend
+1. Messages are stored in a database and embedded using vector embeddings
+2. When searching, the system uses similarity search to find relevant content
+3. Results are reranked for better accuracy
+4. The system supports both chat-specific and user-wide searches
+5. Optional LLM integration for generating responses (configurable with local models or OpenAI API)
 
-nice to haves:
-- animations: if deepseek, "thinking..." 
-- view the bacakend thinking process
-- stats
-- graphs
-- login
-- change model
-- chat page using LaTeX, Markdown, code blocks
-- kinda like windsurf, have a graph to show what code language is most used, what you code the most, most used libraries, etc.
-- charts would be kind of cool, maybe prompted off of the user data. (like statistcs for what rag data they pulled and how similar it is. )
+## Features
 
+### Completed ✅
 
+- Vector store for similarity-based retrieval
+- Base backend API
+- Local database for message storage
+- Reranking and embedding system
+- Testing framework
+- Chat and user-wide search functionality
+
+### In Progress 🔄
+
+- MongoDB integration for improved data persistence
+- Frontend API connectivity
+- LLM integration (local or OpenAI)
+- Frontend UI development
+
+### Planned Optimizations
+
+- Better logic for saving messages
+- Improved embedding and retrieval performance
+- API refinements for smoother frontend-backend communication
+
+## Future Ideas
+
+### Data Visualization
+
+- Interactive graphs showing code language usage
+- User activity statistics
+- RAG retrieval quality metrics and visualization
+- Similarity visualization between messages
+
+### User Experience
+
+- "Thinking..." animations when using models like DeepSeek
+- Visibility into backend processing steps
+- Rich text support including LaTeX, Markdown, and code blocks
+- Model switching capabilities
+- User authentication system
+
+## Development Roadmap
+
+### Immediate Tasks
+
+- [ ] Setup MongoDB for persistent storage
+- [ ] Complete frontend-backend API integration
+- [ ] Implement LLM integration (local or OpenAI)
+- [ ] Build out the frontend UI
+
+### Nice-to-Haves
+
+- [ ] Animated UI elements for processing indicators
+- [ ] Backend process visualization
+- [ ] Statistical dashboards
+- [ ] Data visualization graphs
+- [ ] User login system
+- [ ] Model selection interface
+- [ ] Rich text editor with LaTeX, Markdown, and code blocks
+- [ ] Code usage analytics and visualization
+- [ ] User data statistics and charts
+
+## Updates
+
+**5/31/25** - Completed reranking, embedding, and search functionality  
+**5/30/25** - Initial setup with vector store and base API
