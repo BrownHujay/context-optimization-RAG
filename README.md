@@ -1,19 +1,19 @@
-# Chat Thingy
+# Context Optimization RAG
 
 A modern chat application with advanced RAG (Retrieval Augmented Generation) capabilities and a React-based frontend.
 
 ## Project Overview
 
-Chat Thingy is a comprehensive chat application that combines:
+Context Optimization RAG is a comprehensive chat application that combines:
 
-- **Frontend**: React 19 with TypeScript, Tailwind CSS, and Three.js for animations
+- **Frontend**: React 19 with TypeScript, Tailwind CSS, and Three.js for graphing
 - **Backend**: Custom API with vector-based search and embedding capabilities
 - **Retrieval System**: Advanced RAG with reranking and embedding for intelligent message retrieval
 - **Database**: Local storage with planned MongoDB integration
 
 ## How It Works
 
-The application uses a sophisticated retrieval system to find relevant information:
+The application uses a hybrid retrieval system to find relevant information:
 
 1. Messages are stored in a database and embedded using vector embeddings
 2. When searching, the system uses similarity search to find relevant content
