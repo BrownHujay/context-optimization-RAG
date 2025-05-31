@@ -25,3 +25,6 @@ nice to haves:
 - animations: if deepseek, "thinking..." 
 - view the bacakend thinking process
 - stats
+- chat page using LaTeX, Markdown, code blocks
+- kinda like windsurf, have a graph to show what code language is most used, what you code the most, most used libraries, etc.
+- charts would be kind of cool, maybe prompted off of the user data. (like statistcs for what rag data they pulled and how similar it is. )
