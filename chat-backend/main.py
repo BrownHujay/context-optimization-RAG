@@ -28,15 +28,22 @@ def chat(req: ChatRequest):
     # Get recent messages
     recent = get_recent_messages(req.conversation_id)
 
-    #summarization
-    #build this here pls :)
-
     # Build prompt for LLM
     prompt = "rebuild for deepseek"
 
     # Response
     response = "beans"
 
-    store_message(req.message, response, faiss_id, req.conversation_id, summary)
+    #summarization
+    #build this here pls :)
+
+    #title
+    #build this here pls :)
+
+    store_message(req.message, response, faiss_id, req.conversation_id, summary, title)
 
     return {"response": response}
+
+@app.get("/graph")
+def graph():
+    return flatten_faiss_vectors()

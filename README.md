@@ -70,6 +70,7 @@ The application uses a hybrid retrieval system to find relevant information:
 - [ ] Complete frontend-backend API integration
 - [ ] Implement LLM integration (local or OpenAI)
 - [ ] Build out the frontend UI
+- [ ] Set up routes and react router routes
 
 ### Nice-to-Haves
 
