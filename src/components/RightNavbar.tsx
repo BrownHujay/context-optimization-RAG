@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import {useNavigate} from "react-router-dom";
 import HamburgerMenu from "./hamburgerMenu";
 
-export default function Navbar({ onStateChange, darkMode }: { onStateChange?: (isOpen: boolean) => void, darkMode?: boolean }) {
+export default function Navbar({ onStateChange }: { onStateChange?: (isOpen: boolean) => void }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpen = () => {
@@ -31,14 +31,14 @@ export default function Navbar({ onStateChange, darkMode }: { onStateChange?: (i
             onMouseLeave={() => handleClose()}
           >
             <div className="absolute top-0 right-0">
-              <HamburgerMenu item={true} darkMode={darkMode} />
+              <HamburgerMenu item={true} />
             </div>
-            <SlideTabs darkMode={darkMode} />
+            <SlideTabs />
           </div>
         </div>
       ) : (
         <div onClick={handleOpen}>
-          <HamburgerMenu item={false} darkMode={darkMode} />
+          <HamburgerMenu item={false} />
         </div>
       )}
     </div>
@@ -51,7 +51,7 @@ type PositionType = {
   opacity: number;
 };
 
-const SlideTabs = ({ darkMode }: { darkMode?: boolean }) => {
+const SlideTabs = () => {
   const [position, setPosition] = useState<PositionType>({
     top: 0,
     height: 0,
