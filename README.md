@@ -62,8 +62,6 @@ The application uses a hybrid retrieval system to find relevant information:
 - Model switching capabilities
 - User authentication system
 
-## Development Roadmap
-
 ### Immediate Tasks
 
 - [ ] Setup MongoDB for persistent storage
