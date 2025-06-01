@@ -88,4 +88,3 @@ The application uses a hybrid retrieval system to find relevant information:
 
 **5/31/25** - Completed reranking, embedding, and search functionality  
 **5/30/25** - Initial setup with vector store and base API
-**6/1/25** - Worked on chat page and navbar
