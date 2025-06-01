@@ -2,9 +2,9 @@ import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import type { ReactNode } from "react";
 import {useNavigate} from "react-router-dom";
-import HamburgerMenu from "./hamburgermenu";
+import HamburgerMenu from "./hamburgerMenu";
 
-export default function Navbar({ onStateChange }: { onStateChange?: (isOpen: boolean) => void }) {
+export default function Navbar({ onStateChange, darkMode }: { onStateChange?: (isOpen: boolean) => void, darkMode?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpen = () => {
@@ -31,14 +31,14 @@ export default function Navbar({ onStateChange }: { onStateChange?: (isOpen: boo
             onMouseLeave={() => handleClose()}
           >
             <div className="absolute top-0 right-0">
-              <HamburgerMenu item={true} />
+              <HamburgerMenu item={true} darkMode={darkMode} />
             </div>
-            <SlideTabs />
+            <SlideTabs darkMode={darkMode} />
           </div>
         </div>
       ) : (
         <div onClick={handleOpen}>
-          <HamburgerMenu item={false} />
+          <HamburgerMenu item={false} darkMode={darkMode} />
         </div>
       )}
     </div>
@@ -51,7 +51,7 @@ type PositionType = {
   opacity: number;
 };
 
-const SlideTabs = () => {
+const SlideTabs = ({ darkMode }: { darkMode?: boolean }) => {
   const [position, setPosition] = useState<PositionType>({
     top: 0,
     height: 0,

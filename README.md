@@ -71,6 +71,8 @@ The application uses a hybrid retrieval system to find relevant information:
 - [ ] Implement LLM integration (local or OpenAI)
 - [ ] Build out the frontend UI
 - [ ] Set up routes and react router routes
+- [ ] Add navbar for actual settings
+- [ ] Add routes to fix the chat page. Set up chat vs home page so that way I don't keep sending myself to dead links.
 
 ### Nice-to-Haves
 

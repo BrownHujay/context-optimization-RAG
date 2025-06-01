@@ -1,7 +1,16 @@
-export default function App() {
-    return (
-        <div>
-            <h1 className="text-3xl text-red-600">hi</h1>
-        </div>
-    )
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ChatPage from './pages/ChatPage';
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/" element={<Navigate to="/chat" replace />} />
+      </Routes>
+    </Router>
+  );
 }
+
+export default App;
