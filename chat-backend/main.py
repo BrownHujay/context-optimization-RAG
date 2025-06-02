@@ -76,8 +76,8 @@ def create_new_account(account: AccountCreate):
             detail="An account with this email already exists"
         )
     
-    # In a real application, we would hash the password here
-    # For now, we'll use a placeholder
+    # In a real application, hash the password here
+    # For now, use a placeholder
     password_hash = account.password  # TODO: Replace with proper hashing
     
     account_id = create_account(account.username, account.email, password_hash)
@@ -311,13 +311,13 @@ def chat(req: ChatRequest):
     prompt = "rebuild for deepseek"
 
     # Response
-    response = "beans"  # Placeholder for actual LLM response
+    response = "beans" 
 
     # Summarization - placeholder
-    summary = None  # TODO: Implement summarization
+    summary = None 
 
     # Title - placeholder
-    title = None  # TODO: Implement title generation
+    title = None 
 
     # Store the message
     store_message(req.account_id, req.conversation_id, req.message, response, faiss_id, summary, title)
