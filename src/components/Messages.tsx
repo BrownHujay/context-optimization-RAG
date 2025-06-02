@@ -27,7 +27,7 @@ export default function Messages({ messages }: MessagesProps) {
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <div className="flex-1 overflow-hidden px-4 pt-6 bg-[var(--bg-primary)]">
       <div
         ref={scrollContainerRef}
         className="h-full overflow-y-auto space-y-4 pr-2"
@@ -35,11 +35,9 @@ export default function Messages({ messages }: MessagesProps) {
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`px-4 py-2 rounded-xl text-left break-words break-all whitespace-pre-wrap transition-all
-              ${message.role === "user"
-                ? "bg-purple-700/30 dark:bg-purple-100/10 ml-auto"
-                : "bg-purple-900/40 dark:bg-purple-200/20 mr-auto"
-              }`}
+            className={message.role === "user" 
+              ? "px-4 py-2 rounded-xl text-left break-words break-all whitespace-pre-wrap transition-all bg-[var(--theme-color)] text-white ml-auto" 
+              : "px-4 py-2 text-left break-words break-all whitespace-pre-wrap transition-all mr-auto text-[var(--text-primary)]"}
             style={{
               maxWidth: "66%",
               width: message.content.length < 35 ? "fit-content" : "100%",

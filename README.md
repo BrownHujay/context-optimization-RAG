@@ -31,6 +31,7 @@ The application uses a hybrid retrieval system to find relevant information:
 - Reranking and embedding system
 - Testing framework
 - Chat and user-wide search functionality
+- Basic Frontend 
 
 ### In Progress 🔄
 

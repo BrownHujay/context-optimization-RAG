@@ -3,7 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Change this to the exact chat title after building the chat page</title>
+    <link rel="icon" href="/chat-icon.svg" type="image/svg+xml" />
+    <title>Chat App</title>
+    <script>
+      // Initialize dark mode immediately before page renders
+      (function() {
+        const darkMode = localStorage.getItem('darkMode') === 'true' || 
+          (localStorage.getItem('darkMode') === null && 
+           window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        if (darkMode) {
+          document.documentElement.classList.add('dark');
+        }
+        
+        // Also initialize theme color
+        const themeColor = localStorage.getItem('themeColor') || 'purple';
+        document.documentElement.classList.add(`theme-${themeColor}`);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

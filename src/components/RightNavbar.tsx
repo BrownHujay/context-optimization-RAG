@@ -8,17 +8,13 @@ export default function Navbar({ onStateChange }: { onStateChange?: (isOpen: boo
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpen = () => {
-    setTimeout(() => {
-      setIsOpen(true);
-      onStateChange?.(true);
-    }, 200);
+    setIsOpen(true);
+    onStateChange?.(true);
   };
 
   const handleClose = () => {
-    setTimeout(() => {
-      setIsOpen(false);
-      onStateChange?.(false);
-    }, 200);
+    setIsOpen(false);
+    onStateChange?.(false);
   };
 
 
@@ -106,22 +102,28 @@ const Tab = ({ children, setPosition, setIsHovered, r }: TabProps) => {
         if (!ref.current) return;
 
         const { height } = ref.current.getBoundingClientRect();
-
+        
+        // Immediately set hovered state before updating position
+        setIsHovered(true);
+        
+        // Update position without delay
         setPosition({
           top: ref.current.offsetTop,
           height,
-          opacity: 1, // Set opacity to 1 when mouse enters the tab
+          opacity: 1,
         });
-        setIsHovered(true); // Set hovered state to true
       }}
       onMouseLeave={() => {
+        // First immediately set hover state to false
+        setIsHovered(false);
+        
+        // Then update position without delay
         setPosition((pv) => ({
           ...pv,
-          opacity: 0, // Set opacity to 0 when mouse leaves the tab
+          opacity: 0,
         }));
-        setIsHovered(false); // Set hovered state to false
       }}
-      className="relative z-10 block cursor-pointer px-3 py-1.5 text-xs uppercase text-white mix-blend-difference md:px-5 md:py-3 md:text-base"
+      className="relative z-10 block cursor-pointer px-3 py-1.5 text-xs uppercase text-[var(--text-primary)] hover:text-[var(--theme-color)] transition-colors md:px-5 md:py-3 md:text-base"
       onClick={() => routeChange(r)}
     >
       {children}
@@ -137,7 +139,13 @@ const Cursor = ({ position }: CursorProps) => {
   return (
     <motion.li
       animate={position}
-      className="absolute z-0 w-full h-7 rounded-lg bg-white md:h-12"
+      transition={{
+        type: "spring",
+        stiffness: 500,
+        damping: 30,
+        mass: 0.5
+      }}
+      className="absolute z-0 w-full h-7 rounded-lg bg-[var(--theme-color-dark)] bg-opacity-20 md:h-12"
     />
   );
 };
