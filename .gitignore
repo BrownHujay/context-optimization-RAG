@@ -44,7 +44,8 @@ __pycache__/
 *.pyo
 *.pyd
 *.egg-info/
-chat-backend/chat/  
+chat-backend/chat/
+chat-backend/models/
 
 # ----------------------
 # ✅ Editor / OS Junk

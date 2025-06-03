@@ -30,10 +30,34 @@ class VectorStore:
 
     def _ensure_mongo_faiss_consistency(self):
         # Check to avoid drifting between FAISS and Mongo
-        faiss_ids = set(self.index.id_map.ids if self.index.ntotal > 0 else [])
+        # Handle different FAISS versions' ID map access methods
+        try:
+            # Try newer FAISS API
+            if hasattr(self.index, 'id_map') and hasattr(self.index.id_map, 'ids'):
+                faiss_ids = set(self.index.id_map.ids.tolist() if self.index.ntotal > 0 else [])
+            # Try direct access to reconstruct_n for older versions
+            elif hasattr(self.index, 'reconstruct_n'):
+                faiss_ids = set()
+                if self.index.ntotal > 0:
+                    # Get all IDs by retrieving them one by one
+                    for i in range(self.index.ntotal):
+                        try:
+                            idx = self.index.id_map[i]
+                            faiss_ids.add(int(idx))
+                        except:
+                            pass
+            else:
+                # Fallback to empty set if structure is unknown
+                faiss_ids = set()
+                print("[Warning] Could not determine FAISS IDs structure. Index synchronization check skipped.")
+        except Exception as e:
+            print(f"[Warning] Error accessing FAISS IDs: {e}")
+            faiss_ids = set()
+            
         mongo_ids = set(doc["faiss_id"] for doc in self.collection.find({}, {"faiss_id": 1}))
-        if faiss_ids != mongo_ids:
+        if faiss_ids and mongo_ids and faiss_ids != mongo_ids:
             print("[Warning] FAISS and MongoDB index IDs are out of sync. Consider rebuilding index.")
+            print(f"FAISS has {len(faiss_ids)} IDs, MongoDB has {len(mongo_ids)} IDs")
 
     def add(self, vector: np.ndarray, message: str, conversation_id: str = None):
         # Generate a unique FAISS-safe integer ID

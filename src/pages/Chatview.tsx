@@ -1,75 +1,130 @@
 // src/components/ChatView.tsx
-import { useState, useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Messages from "../components/Messages";
 import ChatInput from "../components/ChatInput";
+import { useNotification } from "../context/NotificationContext";
+import { useChat } from "../context/ChatContext";
+import { useMessages } from "../hooks/useMessages";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface ChatViewProps {
-  activeId: string;
-  messages: string[];
-  updateMessages: (id: string, messages: string[]) => void;
-}
-
-export default function ChatView({ activeId, messages: chatMessages, updateMessages }: ChatViewProps) {
+export default function ChatView() {
+  const { activeChat } = useChat();
+  const { messages, loading: isLoading } = useMessages(activeChat?.id || "", activeChat?.id || "");
   const { id } = useParams();
   const navigate = useNavigate();
   
   // Ensure we can go back to homepage with browser back button
   useEffect(() => {
-    if (!id || !activeId) {
+    if (!id || !activeChat) {
       navigate('/');
     }
-  }, [id, activeId, navigate]);
+  }, [id, activeChat, navigate]);
   
-  // Convert string[] to Message[] if needed
-  const initialMessages = chatMessages.map(msg => {
-    try {
-      const parsed = JSON.parse(msg);
-      // Ensure the role is strictly typed
-      if (parsed.role === "user" || parsed.role === "assistant") {
-        return parsed as Message;
-      } else {
-        // Fallback to assistant role if invalid role
-        return { role: "assistant" as const, content: parsed.content || msg };
-      }
-    } catch {
-      // If not valid JSON, create a default message
-      return { role: "assistant" as const, content: msg };
+  const { sendNotification, tabActive, updateTitleWithNotification } = useNotification();
+  const prevMessagesLengthRef = useRef(messages?.length || 0);
+  
+  // Set the document title properly when the component mounts
+  useEffect(() => {
+    if (activeChat) {
+      const chatTitle = activeChat.title || `Chat ${activeChat.id}`;
+      document.title = chatTitle;
+      console.log('ChatView: Setting initial chat title:', chatTitle);
     }
-  });
-  
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // This function will be called when ChatInput updates messages
-  const handleMessagesUpdate = (newStringMessages: string[]) => {
-    // Convert string[] to Message[] for local state
-    const newMessages = newStringMessages.map(msg => {
-      try {
-        const parsed = JSON.parse(msg);
-        if (parsed.role === "user" || parsed.role === "assistant") {
-          return parsed as Message;
-        } else {
-          return { role: "assistant" as const, content: parsed.content || msg };
+  // Listen for visibility changes to update messages when tab becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      console.log('ChatView: Visibility changed, document.hidden =', document.hidden);
+      if (!document.hidden && messages && messages.length > 0) {
+        // Set the proper chat title when the tab becomes visible
+        if (activeChat) {
+          const chatTitle = activeChat.title || `Chat ${activeChat.id}`;
+          document.title = chatTitle;
+          console.log('ChatView: Restoring chat title on visibility change:', chatTitle);
         }
-      } catch {
-        return { role: "assistant" as const, content: msg };
       }
-    });
+    };
     
-    // Update local state
-    setMessages(newMessages);
+    // Log initial visibility state
+    console.log('ChatView: Initial visibility state, document.hidden =', document.hidden);
     
-    // Update parent state if this component is controlled
-    if (updateMessages && activeId) {
-      updateMessages(activeId, newStringMessages);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [messages, activeChat]);
+  
+  // Direct access to notification system for manual notifications
+  useEffect(() => {
+    // Expose notification API to window for debugging
+    (window as any).__notifyChat = {
+      sendNotification: (title: string, body: string) => {
+        sendNotification(title, body);
+        return 'Notification sent';
+      },
+      updateTitle: (count: number) => {
+        updateTitleWithNotification(count);
+        return 'Title updated';
+      },
+      checkTabActive: () => {
+        return { tabActive, documentHidden: document.hidden };
+      }
+    };
+    
+    return () => {
+      delete (window as any).__notifyChat;
+    };
+  }, [sendNotification, updateTitleWithNotification, tabActive]);
+
+  // Add notification logic for new messages
+  useEffect(() => {
+    if (!messages) return;
+    
+    console.log(`ChatView: messages updated, now has ${messages.length} messages`);
+    
+    try {      
+      // Check if there are new messages
+      if (messages.length > prevMessagesLengthRef.current) {
+        // Process all new messages since last update
+        for (let i = prevMessagesLengthRef.current; i < messages.length; i++) {
+          try {
+            const message = messages[i];
+            
+            // Only notify for assistant messages
+            if (message.role === 'assistant') {
+              console.log(`ChatView: Processing assistant message at index ${i}:`, 
+                message.text.substring(0, 30) + '...');
+              
+              // Special handling for first assistant message in a new chat
+              if (prevMessagesLengthRef.current === 0 && i === 1) {
+                console.log('ChatView: First assistant message in new chat, scheduling notification...');
+                
+                // Use slight delay to ensure UI is ready
+                setTimeout(() => {
+                  sendNotification(`New message in Chat ${activeChat?.id}`, message.text);
+                  updateTitleWithNotification(1);
+                }, 500);
+              } else {
+                console.log('ChatView: Regular assistant message, sending notification');
+                sendNotification(`New message in Chat ${activeChat?.id}`, message.text);
+                updateTitleWithNotification(1);
+              }
+            }
+          } catch (err) {
+            console.error('Error processing message at index', i, err);
+          }
+        }
+      }
+      
+      // Update reference to current length
+      prevMessagesLengthRef.current = messages.length;
+    } catch (error) {
+      console.error('ChatView: Error processing messages:', error);
     }
-  };
+  }, [messages, activeChat, sendNotification, updateTitleWithNotification]);
 
   // Container animation variants - 40% faster
   const containerVariants = {
@@ -119,26 +174,29 @@ export default function ChatView({ activeId, messages: chatMessages, updateMessa
 
   return (
     <motion.div
-      className="flex flex-col h-full w-full"
+      className="flex flex-col h-screen w-full overflow-hidden fixed inset-0"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
       exit="exit"
     >
       <motion.div 
-        className="flex-grow overflow-y-auto"
+        className="flex-1 overflow-hidden"
         variants={messageVariants}
       >
-        <Messages messages={messages} />
+        {isLoading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--theme-color)]"></div>
+          </div>
+        ) : (
+          <Messages />
+        )}
       </motion.div>
       <motion.div 
-        className="sticky bottom-0"
+        className="w-full bg-[var(--bg-primary)] shadow-sm"
         variants={inputVariants}
       >
-        <ChatInput 
-          messages={chatMessages} 
-          updateMessages={handleMessagesUpdate} 
-        />
+        <ChatInput />
       </motion.div>
     </motion.div>
   );

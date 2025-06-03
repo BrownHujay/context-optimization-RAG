@@ -144,9 +144,31 @@ def get_chat_messages(chat_id, limit=None, skip=0):
         
     return list(cursor)
 
-def get_recent_messages(chat_id, limit=5):
-    """Get most recent messages for a chat"""
-    return list(messages_col.find({"chat_id": ObjectId(chat_id)}).sort("timestamp", -1).limit(limit))
+def get_recent_messages(chat_id, limit=5, as_dict=False):
+    """Get most recent messages for a chat
+    
+    Args:
+        chat_id: The chat ID to get messages for
+        limit: Maximum number of messages to return
+        as_dict: If True, return dictionaries instead of MongoDB documents
+        
+    Returns:
+        List of messages, ordered by timestamp (newest first)
+    """
+    messages = list(messages_col.find({"chat_id": ObjectId(chat_id)}).sort("timestamp", -1).limit(limit))
+    
+    # Convert to dictionaries if requested
+    if as_dict:
+        result = []
+        for msg in messages:
+            msg_dict = {
+                "role": "assistant" if "response" in msg else "user",
+                "content": msg.get("response", msg.get("text", ""))
+            }
+            result.append(msg_dict)
+        return result
+    
+    return messages
 
 def get_by_ids(ids):
     """Get messages by their faiss_ids"""
@@ -161,3 +183,47 @@ def search_messages(account_id, query, limit=10):
 
 # Ensure text indexes for search functionality
 messages_col.create_index([("text", "text"), ("response", "text")])
+
+# Create summary collection
+summaries_col = db.summaries
+
+def store_summary(account_id, conversation_id, summary_data):
+    """Store a new summary for a conversation"""
+    return summaries_col.insert_one({
+        "account_id": ObjectId(account_id),
+        "conversation_id": ObjectId(conversation_id),
+        "text": summary_data.get("text", ""),
+        "title": summary_data.get("title", ""),
+        "bullets": summary_data.get("bullets", []),
+        "messages_count": summary_data.get("messages_count", 0),
+        "tokens_count": summary_data.get("tokens_count", 0),
+        "timestamp": datetime.now()
+    }).inserted_id
+
+def get_last_summary(conversation_id):
+    """Get the most recent summary for a conversation"""
+    return summaries_col.find_one(
+        {"conversation_id": ObjectId(conversation_id)},
+        sort=[("timestamp", -1)]
+    )
+
+def update_chat(conversation_id, data, overwrite_empty=False):
+    """Update chat data with conditional overwrite"""
+    update_fields = {}
+    
+    for key, value in data.items():
+        if overwrite_empty:
+            # Only update if current field is empty/None
+            chat = get_chat(conversation_id)
+            if not chat or not chat.get(key):
+                update_fields[key] = value
+        else:
+            # Always update
+            update_fields[key] = value
+    
+    if update_fields:
+        return chats_col.update_one(
+            {"_id": ObjectId(conversation_id)},
+            {"$set": {**update_fields, "updated_at": datetime.now()}}
+        )
+    return None

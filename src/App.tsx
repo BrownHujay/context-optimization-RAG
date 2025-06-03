@@ -1,59 +1,37 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Navbar from "./components/LeftNavbar";
-import ChatView from "./pages/Chatview";
 import Homepage from "./pages/Homepage";
 import AccountPage from "./pages/AccountPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import SettingsPage from "./pages/SettingsPage";
+import ChatPage from "./pages/ChatPage";
 import { motion, AnimatePresence } from "framer-motion";
+import { NotificationProvider } from "./context/NotificationContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { AuthProvider } from "./context/AuthContext";
+import { ChatProvider } from "./context/ChatContext";
+import { useAuth } from "./context/AuthContext";
 
-// Inner component to handle routes with location-based animations
-function AppContent() {
+// Separate inner component that safely uses the auth context
+// This component should be defined inside the App component to ensure it always has access to context
+const RoutesWithAuth = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [conversations, setConversations] = useState<{ [id: string]: string[] }>({});
-  const [activeId, setActiveId] = useState("");
+  const { currentUser } = useAuth(); // This will now always have access to AuthProvider
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
 
-  // Update activeId based on URL when needed
-  useEffect(() => {
-    const pathParts = location.pathname.split('/');
-    if (pathParts[1] === 'chat' && pathParts[2]) {
-      setActiveId(pathParts[2]);
-    }
-  }, [location]);
-
-  // Update document title based on active chat
-  useEffect(() => {
-    document.title = activeId ? `Chat ${activeId}` : 'Chat App';
-  }, [activeId]);
-
+  // Handle new chat creation
   const handleNewChat = () => {
+    // Reset title and navigate to homepage
+    document.title = 'Chat App';
     navigate('/');
-  };
-
-  const updateMessages = (id: string, messages: string[]) => {
-    if (!id && messages.length > 0) {
-      // Create new chat when sending first message from homepage
-      const newId = Date.now().toString();
-      setConversations(prev => ({ ...prev, [newId]: messages }));
-      setActiveId(newId);
-      navigate(`/chat/${newId}`);
-    } else if (id) {
-      // Update existing chat
-      setConversations(prev => ({ ...prev, [id]: messages }));
-    }
   };
 
   return (
     <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
       <Navbar
-        activeId={activeId}
-        setActiveId={setActiveId}
-        conversations={Object.keys(conversations)}
         onNewChat={handleNewChat}
-        messages={conversations}
         isNavbarVisible={isNavbarVisible}
         setIsNavbarVisible={setIsNavbarVisible}
       />
@@ -70,24 +48,12 @@ function AppContent() {
             <Routes location={location} key={location.pathname}>
               <Route
                 path="/"
-                element={
-                  <Homepage
-                    updateMessages={updateMessages}
-                  />
-                }
+                element={<Homepage />}
               />
               <Route
                 path="/chat/:id"
                 element={
-                  activeId && conversations[activeId] ? (
-                    <ChatView
-                      activeId={activeId}
-                      messages={conversations[activeId] || []}
-                      updateMessages={updateMessages}
-                    />
-                  ) : (
-                    <Navigate to="/" replace />
-                  )
+                  currentUser ? <ChatPage /> : <Navigate to="/" replace />
                 }
               />
               <Route path="/account" element={<AccountPage />} />
@@ -103,6 +69,22 @@ function AppContent() {
 
 // Wrapper component for router
 export default function App() {
+  // Define the content component within App to ensure context is always available
+  // This prevents the "useAuth must be used within an AuthProvider" error during hot reloading
+  const AppContent = () => {
+    return (
+      <ThemeProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <ChatProvider>
+              <RoutesWithAuth />
+            </ChatProvider>
+          </AuthProvider>
+        </NotificationProvider>
+      </ThemeProvider>
+    );
+  };
+
   return (
     <Router>
       <AppContent />

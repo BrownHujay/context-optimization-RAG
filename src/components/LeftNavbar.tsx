@@ -1,13 +1,10 @@
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { useChat } from "../context/ChatContext";
 
 interface NavbarProps {
-  activeId: string;
-  setActiveId: (id: string) => void;
-  conversations: string[];
   onNewChat: () => void;
-  messages?: { [id: string]: string[] };
   isNavbarVisible: boolean;
   setIsNavbarVisible: (visible: boolean) => void;
 }
@@ -33,7 +30,7 @@ const SearchInput = ({ value, onChange, onClear }: { value: string, onChange: (e
         placeholder="Search conversations..."
         value={value}
         onChange={onChange}
-        className="w-full p-2 pl-10 pr-10 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+        className="w-full p-2 pl-10 pr-10 border border-[var(--border-color)] rounded-lg bg-[var(--bg-secondary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--theme-color)]"
       />
       <div className="absolute left-3 top-2.5 text-gray-400">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -56,22 +53,23 @@ const SearchInput = ({ value, onChange, onClear }: { value: string, onChange: (e
 };
 
 export default function LeftNavbar({ 
-  activeId, 
-  setActiveId, 
-  conversations, 
   onNewChat, 
-  messages = {}, 
   isNavbarVisible, 
   setIsNavbarVisible 
 }: NavbarProps) {
   const navigate = useNavigate();
+  const { activeChat, chats, setActiveChat } = useChat();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<{ id: string; content: string; matches: number }[]>([]);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleSwitch = (id: string) => {
-    setActiveId(id);
-    navigate(`/chat/${id}`);
+    const chat = chats.find(c => c.id === id);
+    if (chat) {
+      setActiveChat(chat);
+      navigate(`/chat/${id}`);
+    }
   };
 
   const toggleNavbar = () => {
@@ -86,71 +84,60 @@ export default function LeftNavbar({
       setIsSearchOpen(false);
     }
   }, [isNavbarVisible]);
-  
-  // No longer need the focus effect as it's handled in the SearchInput component
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (!searchTerm.trim()) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
+    
+    // Set searching state to true to show loading indicator
+    setIsSearching(true);
+    
+    // Small delay to ensure the UI updates with the "Searching..." state
+    await new Promise(resolve => setTimeout(resolve, 50));
 
-    // Search through all messages in all conversations
-    const results: { id: string; content: string; matches: number }[] = [];
-    const processedIds = new Set<string>(); // Track processed items to prevent duplicates
-
-    Object.entries(messages).forEach(([id, msgArray]) => {
-      msgArray.forEach(msg => {
-        const resultKey = `${id}-${msg}`; // Create a unique key for this result
-        if (processedIds.has(resultKey)) return; // Skip if already processed
-        
-        let found = false;
-        let content = "";
-        let matchCount = 0;
-        
-        try {
-          // Try to parse as JSON first (for structured messages)
-          const parsed = JSON.parse(msg);
-          if (parsed.content && parsed.content.toLowerCase().includes(searchTerm.toLowerCase())) {
-            content = parsed.content;
-            matchCount = (parsed.content.toLowerCase().match(new RegExp(searchTerm.toLowerCase(), 'g')) || []).length;
-            found = true;
-          }
-        } catch {
-          // If not JSON, only search the raw string if we didn't find it as JSON
-          if (!found && msg.toLowerCase().includes(searchTerm.toLowerCase())) {
-            content = msg;
-            matchCount = (msg.toLowerCase().match(new RegExp(searchTerm.toLowerCase(), 'g')) || []).length;
-            found = true;
-          }
-        }
-        
-        // Only add if we found something
-        if (found) {
-          results.push({ id, content, matches: matchCount });
-          processedIds.add(resultKey); // Mark as processed
+    try {
+      // Search through all chats
+      const results: { id: string; content: string; matches: number }[] = [];
+      
+      // For now, just add the chat title as a search result if it matches
+      chats.forEach(chat => {
+        if (chat.title && chat.title.toLowerCase().includes(searchTerm.toLowerCase())) {
+          results.push({
+            id: chat.id,
+            content: chat.title,
+            matches: (chat.title.toLowerCase().match(new RegExp(searchTerm.toLowerCase(), 'g')) || []).length
+          });
         }
       });
-    });
-
-    // Sort by most matches
-    setSearchResults(results.sort((a, b) => b.matches - a.matches));
+      
+      setSearchResults(results.sort((a, b) => b.matches - a.matches));
+    } finally {
+      // Always set isSearching to false when done, even if there's an error
+      setIsSearching(false);
+    }
   };
 
   // Handle search term changes with debounce
   useEffect(() => {
     if (!isSearchOpen) return;
-    
+
     if (searchTerm.trim().length === 0) {
       setSearchResults([]);
+      setIsSearching(false);
       return;
     }
     
-    const handler = setTimeout(() => {
+    // Set searching to true immediately when typing
+    setIsSearching(true);
+
+    const timer = setTimeout(() => {
       handleSearch();
-    }, 500);
-    
-    return () => clearTimeout(handler);
+    }, 300); // Debounce for better performance
+
+    return () => clearTimeout(timer);
   }, [searchTerm, isSearchOpen]);
   
   // Clear search results when closing the popup
@@ -158,6 +145,7 @@ export default function LeftNavbar({
     if (!isSearchOpen) {
       // Don't clear searchTerm to preserve it if popup reopens
       setSearchResults([]);
+      setIsSearching(false); // Make sure to reset searching state
     }
   }, [isSearchOpen]);
 
@@ -202,14 +190,14 @@ export default function LeftNavbar({
           duration: 0.2
         }}
       >
-        <div className="p-4 border-b border-[var(--border-color)]">
+        <div className="p-4">
           <h1 className="font-bold text-lg">Chats</h1>
         </div>
         
-        <div className="px-2 pt-2 pb-2 space-y-2">
+        <div className="px-2 pb-2 space-y-2">
           <button 
             onClick={onNewChat}
-            className="w-full p-2 rounded-lg transition-colors bg-[var(--theme-color-dark)] bg-opacity-10 text-[var(--text-primary)] flex items-center"
+            className="w-full p-2 rounded-lg transition-colors bg-[var(--theme-color)] bg-opacity-10 hover:bg-opacity-20 text-[var(--text-primary)] flex items-center"
             aria-label="New chat"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -230,17 +218,19 @@ export default function LeftNavbar({
         </div>
         
         <div className="flex-grow overflow-y-auto px-2 pb-16" style={{ height: 'calc(100vh - 180px - 60px)' }}>
-          {conversations.map(id => (
-            <button
-              key={id}
-              className={`w-full text-left p-3 mb-1 rounded-lg transition-colors ${id === activeId ? 'bg-[var(--theme-color)] dark:text-white text-black' : 'text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'}`}
-              onClick={() => handleSwitch(id)}
+          {chats.map(chat => (
+            <motion.button
+              key={chat.id}
+              onClick={() => handleSwitch(chat.id)}
+              className={`w-full p-3 text-left rounded-lg mb-2 transition-colors text-[var(--text-primary)] ${activeChat?.id === chat.id ? 'bg-[var(--theme-color-dark)] bg-opacity-20' : 'hover:bg-[var(--bg-tertiary)]'}`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <p className="font-medium truncate">Chat {id}</p>
-              <p className={`text-xs ${id === activeId ? 'dark:text-white text-black' : 'text-[var(--text-tertiary)]'} truncate`}>
-                {messages[id]?.length} messages
+              <span className="font-medium">{chat.title || `Chat ${chat.id.slice(0, 8)}`}</span>
+              <p className="text-sm text-[var(--text-secondary)] truncate">
+                {new Date(chat.updated_at).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' })}
               </p>
-            </button>
+            </motion.button>
           ))}
         </div>
         
@@ -289,11 +279,11 @@ export default function LeftNavbar({
         >
           {/* Search popup content */}
           <div 
-            className="w-full max-w-lg bg-white dark:bg-gray-800 rounded-lg shadow-xl overflow-hidden animate-scale-in"
+            className="w-full max-w-lg rounded-lg shadow-xl overflow-hidden animate-scale-in bg-[var(--bg-primary)]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-              <h2 className="text-lg font-semibold">Search Messages</h2>
+            <div className="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Search Messages</h2>
               <button 
                 onClick={() => setIsSearchOpen(false)}
                 className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
@@ -304,7 +294,7 @@ export default function LeftNavbar({
               </button>
             </div>
             
-            <div className="p-4">
+            <div className="p-4 bg-[var(--bg-primary)]">
               {/* Search input is a separate component to prevent re-renders */}
               <SearchInput 
                 value={searchTerm}
@@ -313,8 +303,17 @@ export default function LeftNavbar({
               />
               
               {/* Search results */}
-              <div className="mt-4 max-h-80 overflow-y-auto">
-                {searchResults.length > 0 ? (
+              <div className="mt-4 max-h-80 overflow-y-auto bg-[var(--bg-primary)] rounded-lg">
+                {isSearching ? (
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
+                    <div className="animate-pulse flex flex-col items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 mx-auto mb-4 text-[var(--theme-color)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <p className="text-lg text-[var(--text-primary)]">Searching...</p>
+                    </div>
+                  </div>
+                ) : searchResults.length > 0 ? (
                   <>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
                       Found {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
@@ -323,29 +322,29 @@ export default function LeftNavbar({
                       {searchResults.map((result, index) => (
                         <button
                           key={`${result.id}-${index}`}
-                          className="w-full text-left p-3 rounded-lg bg-gray-50 dark:bg-gray-750 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          className="w-full text-left p-3 rounded-lg bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                           onClick={() => {
                             setIsSearchOpen(false);
                             handleSwitch(result.id);
                           }}
                         >
-                          <p className="font-medium">Chat {result.id}</p>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{result.content}</p>
+                          <p className="font-medium text-[var(--text-primary)]">Chat {result.id}</p>
+                          <p className="text-sm text-[var(--text-secondary)] truncate">{result.content}</p>
                         </button>
                       ))}
                     </div>
                   </>
                 ) : searchTerm ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto mb-4 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <p>No messages found</p>
-                    <p className="text-sm mt-2">Try a different search term</p>
+                    <p className="text-[var(--text-primary)]">No messages found</p>
+                    <p className="text-sm mt-2 text-[var(--text-secondary)]">Try a different search term</p>
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <p>Start typing to search messages</p>
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
+                    <p className="text-[var(--text-primary)]">Start typing to search messages</p>
                   </div>
                 )}
               </div>

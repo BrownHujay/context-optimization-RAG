@@ -1,0 +1,74 @@
+"filename", "language", "TypeScript JSX", "TypeScript", "CSS", "Python", "Markdown", "pip requirements", "JavaScript", "JSON", "JSON with Comments", "HTML", "XML", "comment", "blank", "total"
+"/Users/kotnewm/chat-thingy/README.md", "Markdown", 0, 0, 0, 0, 66, 0, 0, 0, 0, 0, 0, 0, 26, 92
+"/Users/kotnewm/chat-thingy/chat-backend/README.md", "Markdown", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1
+"/Users/kotnewm/chat-thingy/chat-backend/api/__init__.py", "Python", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2
+"/Users/kotnewm/chat-thingy/chat-backend/api/app.py", "Python", 0, 0, 0, 33, 0, 0, 0, 0, 0, 0, 0, 4, 6, 43
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/__init__.py", "Python", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/accounts.py", "Python", 0, 0, 0, 73, 0, 0, 0, 0, 0, 0, 0, 4, 14, 91
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/chat.py", "Python", 0, 0, 0, 250, 0, 0, 0, 0, 0, 0, 0, 35, 55, 340
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/chats.py", "Python", 0, 0, 0, 83, 0, 0, 0, 0, 0, 0, 0, 4, 16, 103
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/graph.py", "Python", 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 3, 9
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/http_stream.py", "Python", 0, 0, 0, 131, 0, 0, 0, 0, 0, 0, 0, 18, 22, 171
+"/Users/kotnewm/chat-thingy/chat-backend/api/routes/messages.py", "Python", 0, 0, 0, 45, 0, 0, 0, 0, 0, 0, 0, 4, 9, 58
+"/Users/kotnewm/chat-thingy/chat-backend/api/utils.py", "Python", 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 5, 25
+"/Users/kotnewm/chat-thingy/chat-backend/auth.py", "Python", 0, 0, 0, 31, 0, 0, 0, 0, 0, 0, 0, 3, 7, 41
+"/Users/kotnewm/chat-thingy/chat-backend/benchmark_m3.py", "Python", 0, 0, 0, 98, 0, 0, 0, 0, 0, 0, 0, 7, 29, 134
+"/Users/kotnewm/chat-thingy/chat-backend/db.py", "Python", 0, 0, 0, 177, 0, 0, 0, 0, 0, 0, 0, 16, 36, 229
+"/Users/kotnewm/chat-thingy/chat-backend/embeddings.py", "Python", 0, 0, 0, 94, 0, 0, 0, 0, 0, 0, 0, 30, 32, 156
+"/Users/kotnewm/chat-thingy/chat-backend/graph.py", "Python", 0, 0, 0, 35, 0, 0, 0, 0, 0, 0, 0, 5, 12, 52
+"/Users/kotnewm/chat-thingy/chat-backend/llm.py", "Python", 0, 0, 0, 248, 0, 0, 0, 0, 0, 0, 0, 40, 50, 338
+"/Users/kotnewm/chat-thingy/chat-backend/main.py", "Python", 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0, 6, 5, 31
+"/Users/kotnewm/chat-thingy/chat-backend/models.py", "Python", 0, 0, 0, 62, 0, 0, 0, 0, 0, 0, 0, 3, 14, 79
+"/Users/kotnewm/chat-thingy/chat-backend/preload_models.py", "Python", 0, 0, 0, 24, 0, 0, 0, 0, 0, 0, 0, 4, 8, 36
+"/Users/kotnewm/chat-thingy/chat-backend/prompt_builder.py", "Python", 0, 0, 0, 40, 0, 0, 0, 0, 0, 0, 0, 14, 11, 65
+"/Users/kotnewm/chat-thingy/chat-backend/requirements.txt", "pip requirements", 0, 0, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 9
+"/Users/kotnewm/chat-thingy/chat-backend/summarizer.py", "Python", 0, 0, 0, 163, 0, 0, 0, 0, 0, 0, 0, 31, 66, 260
+"/Users/kotnewm/chat-thingy/chat-backend/vectorstore.py", "Python", 0, 0, 0, 113, 0, 0, 0, 0, 0, 0, 0, 19, 28, 160
+"/Users/kotnewm/chat-thingy/eslint.config.js", "JavaScript", 0, 0, 0, 0, 0, 0, 27, 0, 0, 0, 0, 0, 2, 29
+"/Users/kotnewm/chat-thingy/index.html", "HTML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 27, 0, 0, 3, 30
+"/Users/kotnewm/chat-thingy/notification-test.html", "HTML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 144, 0, 0, 18, 162
+"/Users/kotnewm/chat-thingy/package-lock.json", "JSON", 0, 0, 0, 0, 0, 0, 0, 7682, 0, 0, 0, 0, 1, 7683
+"/Users/kotnewm/chat-thingy/package.json", "JSON", 0, 0, 0, 0, 0, 0, 0, 47, 0, 0, 0, 0, 1, 48
+"/Users/kotnewm/chat-thingy/public/chat-icon.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 1, 8
+"/Users/kotnewm/chat-thingy/public/icon.svg", "XML", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 1, 8
+"/Users/kotnewm/chat-thingy/src/App.tsx", "TypeScript JSX", 81, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 6, 94
+"/Users/kotnewm/chat-thingy/src/api/accountsApi.ts", "TypeScript", 0, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 6, 60
+"/Users/kotnewm/chat-thingy/src/api/chatApi.ts", "TypeScript", 0, 177, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 36, 245
+"/Users/kotnewm/chat-thingy/src/api/chatsApi.ts", "TypeScript", 0, 38, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 7, 64
+"/Users/kotnewm/chat-thingy/src/api/client.ts", "TypeScript", 0, 154, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40, 30, 224
+"/Users/kotnewm/chat-thingy/src/api/index.ts", "TypeScript", 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 8
+"/Users/kotnewm/chat-thingy/src/api/messagesApi.ts", "TypeScript", 0, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 5, 37
+"/Users/kotnewm/chat-thingy/src/api/types/index.ts", "TypeScript", 0, 86, 0, 0, 0, 0, 0, 0, 0, 0, 0, 8, 14, 108
+"/Users/kotnewm/chat-thingy/src/components/ChatInput.tsx", "TypeScript JSX", 177, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 38, 35, 250
+"/Users/kotnewm/chat-thingy/src/components/ChatPage.tsx", "TypeScript JSX", 63, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 10, 80
+"/Users/kotnewm/chat-thingy/src/components/HttpChatInput.tsx", "TypeScript JSX", 236, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 51, 38, 325
+"/Users/kotnewm/chat-thingy/src/components/LeftNavbar.tsx", "TypeScript JSX", 307, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 32, 358
+"/Users/kotnewm/chat-thingy/src/components/Messages.tsx", "TypeScript JSX", 294, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 56, 53, 403
+"/Users/kotnewm/chat-thingy/src/components/NotificationTest.tsx", "TypeScript JSX", 62, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 10, 79
+"/Users/kotnewm/chat-thingy/src/components/RightNavbar.tsx", "TypeScript JSX", 126, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 21, 152
+"/Users/kotnewm/chat-thingy/src/components/hamburgerMenu.tsx", "TypeScript JSX", 29, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 5, 37
+"/Users/kotnewm/chat-thingy/src/context/AuthContext.tsx", "TypeScript JSX", 67, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 14, 82
+"/Users/kotnewm/chat-thingy/src/context/ChatContext.tsx", "TypeScript JSX", 60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 10, 72
+"/Users/kotnewm/chat-thingy/src/context/NotificationContext.tsx", "TypeScript JSX", 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 25, 27, 180
+"/Users/kotnewm/chat-thingy/src/context/ThemeContext.tsx", "TypeScript JSX", 83, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 14, 21, 118
+"/Users/kotnewm/chat-thingy/src/hooks/index.ts", "TypeScript", 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 5
+"/Users/kotnewm/chat-thingy/src/hooks/useAccount.ts", "TypeScript", 0, 55, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 12, 69
+"/Users/kotnewm/chat-thingy/src/hooks/useChat.ts", "TypeScript", 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0, 19, 15, 141
+"/Users/kotnewm/chat-thingy/src/hooks/useChats.ts", "TypeScript", 0, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 17, 122
+"/Users/kotnewm/chat-thingy/src/hooks/useHttpChat.ts", "TypeScript", 0, 224, 0, 0, 0, 0, 0, 0, 0, 0, 0, 57, 51, 332
+"/Users/kotnewm/chat-thingy/src/hooks/useMessages.ts", "TypeScript", 0, 86, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 15, 108
+"/Users/kotnewm/chat-thingy/src/hooks/useSimpleChat.ts", "TypeScript", 0, 66, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 13, 88
+"/Users/kotnewm/chat-thingy/src/index.css", "CSS", 0, 0, 81, 0, 0, 0, 0, 0, 0, 0, 0, 11, 23, 115
+"/Users/kotnewm/chat-thingy/src/main.tsx", "TypeScript JSX", 12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 14
+"/Users/kotnewm/chat-thingy/src/pages/AccountPage.tsx", "TypeScript JSX", 41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 7, 49
+"/Users/kotnewm/chat-thingy/src/pages/ChatPage.tsx", "TypeScript JSX", 87, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 12, 14, 113
+"/Users/kotnewm/chat-thingy/src/pages/Chatview.tsx", "TypeScript JSX", 166, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 17, 21, 204
+"/Users/kotnewm/chat-thingy/src/pages/Homepage.tsx", "TypeScript JSX", 91, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 7, 100
+"/Users/kotnewm/chat-thingy/src/pages/SettingsPage.tsx", "TypeScript JSX", 92, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 14, 111
+"/Users/kotnewm/chat-thingy/src/pages/StatisticsPage.tsx", "TypeScript JSX", 66, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 12, 84
+"/Users/kotnewm/chat-thingy/src/vite-env.d.ts", "TypeScript", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2
+"/Users/kotnewm/chat-thingy/tsconfig.app.json", "JSON", 0, 0, 0, 0, 0, 0, 0, 23, 0, 0, 0, 2, 3, 28
+"/Users/kotnewm/chat-thingy/tsconfig.json", "JSON with Comments", 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 1, 8
+"/Users/kotnewm/chat-thingy/tsconfig.node.json", "JSON", 0, 0, 0, 0, 0, 0, 0, 21, 0, 0, 0, 2, 3, 26
+"/Users/kotnewm/chat-thingy/vite.config.ts", "TypeScript", 0, 31, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 2, 37
+"Total", "-", 2268, 1197, 81, 1746, 67, 9, 27, 7773, 7, 171, 14, 767, 1100, 15227

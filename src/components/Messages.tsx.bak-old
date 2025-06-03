@@ -208,7 +208,6 @@ export default function Messages(): React.ReactElement {
       return;
     }
     
-    // Only log message count instead of individual messages to reduce console spam
     console.log('📊 Processing API messages:', apiMessages.length, 'messages');
     
     // Map API messages to display format
@@ -219,8 +218,10 @@ export default function Messages(): React.ReactElement {
       let content = '';
       if (msg.role === 'user') {
         content = msg.text || '';
+        console.log(`👤 Processing user message: ${content.substring(0, 30)}...`);
       } else {
         content = msg.response || '';
+        console.log(`🤖 Processing assistant message: ${content.substring(0, 30)}...`);
       }
       
       // Format timestamp safely
@@ -232,6 +233,9 @@ export default function Messages(): React.ReactElement {
       } catch (err) {
         console.error('Error formatting timestamp:', err);
       }
+      
+      // Log for debugging message content
+      console.log(`Message ${msg.id} (${msg.role}): ${content.substring(0, 30)}...`);
       
       // Cast the role to the required type for TypeScript
       const safeRole: 'user' | 'assistant' = msg.role === 'user' ? 'user' : 'assistant';
@@ -250,25 +254,24 @@ export default function Messages(): React.ReactElement {
   console.log(`📊 Mapped ${formattedMessages.length} messages to display format`);
 }, [apiMessages, chatId]);
 
-// Ensure messages are scrolled into view when they change
-useEffect(() => {
-  // Always use bottom-up loading for optimal UX
-  if (!isStreaming && displayMessages.length > 0) {
-    // Only scroll to bottom if not streaming and we have messages
-    scrollToBottom();
-    
-    // Mark the current scroll position for future reference
-    const currentScrollY = window.scrollY;
-    const currentScrollHeight = document.body.scrollHeight;
-    
-    // Store these values temporarily to help with scrolling optimization
-    sessionStorage.setItem('scrollPosition', currentScrollY.toString());
-    sessionStorage.setItem('scrollHeight', currentScrollHeight.toString());
-  } else if (isStreaming) {
-    // During streaming, continuously scroll to bottom to show new content
-    scrollToBottom();
-  }
-}, [displayMessages, isStreaming, streamingResponse]);
+// Using scrollToBottom function defined earlier 
+    // Always use bottom-up loading for optimal UX
+    if (!isStreaming && displayMessages.length > 0) {
+      // Only scroll to bottom if not streaming and we have messages
+      scrollToBottom();
+      
+      // Mark the current scroll position for future reference
+      const currentScrollY = window.scrollY;
+      const currentScrollHeight = document.body.scrollHeight;
+      
+      // Store these values temporarily to help with scrolling optimization
+      sessionStorage.setItem('scrollPosition', currentScrollY.toString());
+      sessionStorage.setItem('scrollHeight', currentScrollHeight.toString());
+    } else if (isStreaming) {
+      // During streaming, continuously scroll to bottom to show new content
+      scrollToBottom();
+    }
+  }, [displayMessages, isStreaming, streamingResponse]);
   
   // Optimize bottom-up loading and ensure smooth scrolling
   useEffect(() => {
@@ -284,6 +287,7 @@ useEffect(() => {
     }
   }, [isStreaming, lastStreamUpdate]);
 
+  // ... (rest of the code remains the same)
   // Handle loading and error states
   if (loading && displayMessages.length === 0) {
     return (

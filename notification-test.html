@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      color: #333;
+    }
+    button {
+      background-color: #6366f1;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #4f46e5;
+    }
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      background-color: #f3f4f6;
+    }
+    .instructions {
+      background-color: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 10px 15px;
+      margin-bottom: 20px;
+    }
+    .info-text {
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Browser Notification Test</h1>
+  
+  <div class="instructions">
+    <p><strong>Instructions:</strong></p>
+    <ol>
+      <li>Click "Request Permission" to enable notifications (if not already granted)</li>
+      <li>Click "Test Notification" to trigger a test notification</li>
+      <li>Open this page in one tab, then switch to another tab</li>
+      <li>Click "Test Tab Title" to see if the title updates when in background</li>
+    </ol>
+  </div>
+  
+  <button id="requestPermission">Request Permission</button>
+  <button id="testNotification">Test Notification</button>
+  <button id="testTitle">Test Tab Title</button>
+  <button id="resetTitle">Reset Tab Title</button>
+  
+  <div class="status">
+    <div class="info-text"><strong>Browser supports notifications:</strong> <span id="support"></span></div>
+    <div class="info-text"><strong>Current permission:</strong> <span id="permission"></span></div>
+    <div class="info-text"><strong>Current tab state:</strong> <span id="tabState"></span></div>
+    <div class="info-text"><strong>Current document title:</strong> <span id="currentTitle"></span></div>
+    <div class="info-text"><strong>Last action:</strong> <span id="lastAction">None</span></div>
+  </div>
+
+  <script>
+    // Elements
+    const supportEl = document.getElementById('support');
+    const permissionEl = document.getElementById('permission');
+    const tabStateEl = document.getElementById('tabState');
+    const currentTitleEl = document.getElementById('currentTitle');
+    const lastActionEl = document.getElementById('lastAction');
+    const requestBtn = document.getElementById('requestPermission');
+    const testBtn = document.getElementById('testNotification');
+    const titleBtn = document.getElementById('testTitle');
+    const resetBtn = document.getElementById('resetTitle');
+    
+    // Original title
+    const originalTitle = document.title;
+    let notificationCount = 0;
+    
+    // Update status
+    function updateStatus() {
+      // Check if notifications are supported
+      supportEl.textContent = 'Notification' in window ? 'Yes' : 'No';
+      
+      // Current permission status
+      permissionEl.textContent = Notification.permission;
+      
+      // Current tab state
+      tabStateEl.textContent = document.hidden ? 'Hidden (inactive)' : 'Visible (active)';
+      
+      // Current title
+      currentTitleEl.textContent = document.title;
+    }
+    
+    // Update status initially
+    updateStatus();
+    
+    // Request permission
+    requestBtn.addEventListener('click', () => {
+      Notification.requestPermission().then(permission => {
+        updateStatus();
+        lastActionEl.textContent = `Permission request result: ${permission}`;
+      });
+    });
+    
+    // Test notification
+    testBtn.addEventListener('click', () => {
+      if (Notification.permission === 'granted') {
+        try {
+          const notification = new Notification('Test Notification', {
+            body: 'This is a test notification. It should have a sound.',
+            icon: '/chat-icon.svg',
+            silent: false // Ensure sound is enabled
+          });
+          
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+          
+          lastActionEl.textContent = 'Notification sent successfully';
+        } catch (error) {
+          lastActionEl.textContent = `Error sending notification: ${error.message}`;
+        }
+      } else {
+        lastActionEl.textContent = `Cannot send notification. Permission: ${Notification.permission}`;
+      }
+    });
+    
+    // Test title update
+    titleBtn.addEventListener('click', () => {
+      notificationCount++;
+      document.title = `(${notificationCount}) ${originalTitle}`;
+      updateStatus();
+      lastActionEl.textContent = `Updated title with count: ${notificationCount}`;
+    });
+    
+    // Reset title
+    resetBtn.addEventListener('click', () => {
+      notificationCount = 0;
+      document.title = originalTitle;
+      updateStatus();
+      lastActionEl.textContent = 'Reset title to original';
+    });
+    
+    // Track visibility changes
+    document.addEventListener('visibilitychange', () => {
+      updateStatus();
+      lastActionEl.textContent = `Visibility changed to: ${document.hidden ? 'hidden' : 'visible'}`;
+    });
+  </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
-type ThemeColor = 'purple' | 'blue' | 'green' | 'red';
+type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'grey';
 
 export default function SettingsPage() {
   // Use theme context for theme mode and theme color
@@ -16,11 +16,6 @@ export default function SettingsPage() {
   useEffect(() => {
     localStorage.setItem('notifications', notificationsEnabled.toString());
   }, [notificationsEnabled]);
-  
-  // Toggle notifications function
-  const toggleNotifications = () => {
-    setNotificationsEnabled(prev => !prev);
-  };
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-screen-md">
@@ -78,7 +73,7 @@ export default function SettingsPage() {
             <p className="text-[var(--text-secondary)] text-sm mb-4">Choose a theme color</p>
             
             <div className="flex space-x-3">
-              {['purple', 'blue', 'green', 'red'].map((color) => (
+              {['purple', 'blue', 'green', 'red', 'grey'].map((color) => (
                 <button
                   key={color}
                   onClick={() => setThemeColor(color as ThemeColor)}
@@ -100,7 +95,7 @@ export default function SettingsPage() {
             <div className="flex justify-between items-center">
               <span className="font-medium">Enable notifications</span>
               <button
-                onClick={toggleNotifications}
+                onClick={() => setNotificationsEnabled(prev => !prev)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${notificationsEnabled ? 'bg-[var(--theme-color)]' : 'bg-gray-300'}`}
               >
                 <span

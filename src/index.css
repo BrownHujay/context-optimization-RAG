@@ -3,7 +3,7 @@
 :root {
   /* Add transition for all color properties */
   transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-  /* Theme colors - Light mode (50% lighter) */
+  /* Theme colors - Light mode */
   --color-purple-500: #c5aefa;
   --color-purple-600: #be9ff6;
   --color-purple-700: #b693ec;
@@ -20,6 +20,10 @@
   --color-red-600: #ed9292;
   --color-red-700: #dc8d8d;
   
+  --color-grey-500: #b0b0b0;
+  --color-grey-600: #a0a0a0;
+  --color-grey-700: #909090;
+  
   /* Light mode default colors */
   --bg-primary: #ffffff;
   --bg-secondary: #f9fafb;
@@ -35,6 +39,10 @@
   --theme-color: var(--color-purple-500);
   --theme-color-dark: var(--color-purple-600);
   --theme-color-darker: var(--color-purple-700);
+  
+  /* Chat bubble for assistant messages - NO BORDERS */
+  --chat-bubble: #f3f4f6;
+  --chat-bubble-border: transparent;
 }
 
 /* Dark mode colors */
@@ -45,6 +53,9 @@
   
   --text-primary: #f9fafb;
   --text-secondary: #e5e7eb;
+  
+  /* Chat bubble for dark mode */
+  --chat-bubble: #2e2e2e;
   --text-tertiary: #9ca3af;
   
   --border-color: #3a3a3a;
@@ -75,7 +86,13 @@
   --theme-color-darker: var(--color-red-700);
 }
 
-/* Apply base colors to elements with smooth transitions */
+.theme-grey {
+  --theme-color: var(--color-grey-500);
+  --theme-color-dark: var(--color-grey-600);
+  --theme-color-darker: var(--color-grey-700);
+}
+
+/* Apply base colors to elements with transitions */
 html {
   /* Global transition that affects all elements */
   transition: all 0.5s ease;

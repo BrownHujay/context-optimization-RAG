@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useContext } from 'react';
 import type { ReactNode } from 'react';
 
-type ThemeColor = 'purple' | 'blue' | 'green' | 'red';
+type ThemeColor = 'purple' | 'blue' | 'green' | 'red' | 'grey';
 type ThemeMode = 'dark' | 'light' | 'system';
 
 interface ThemeContextType {
@@ -86,7 +86,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       'theme-purple',
       'theme-blue',
       'theme-green',
-      'theme-red'
+      'theme-red',
+      'theme-grey'
     );
     
     // Add the new theme class
