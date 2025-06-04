@@ -4,7 +4,7 @@ A modern chat application with advanced RAG (Retrieval Augmented Generation) cap
 
 ## Project Overview
 
-Context Optimization RAG is a comprehensive chat application that combines:
+This project is a comprehensive chat application that combines:
 
 - **Frontend**: React 19 with TypeScript, Tailwind CSS, and Three.js for graphing
 - **Backend**: Custom API with vector-based search and embedding capabilities
@@ -31,14 +31,16 @@ The application uses a hybrid retrieval system to find relevant information:
 - Reranking and embedding system
 - Testing framework
 - Chat and user-wide search functionality
-- Basic Frontend 
-
-### In Progress 🔄
-
+- Basic Frontend
 - MongoDB integration for improved data persistence
 - Frontend API connectivity
 - LLM integration (local or OpenAI)
 - Frontend UI development
+- User authentication system (sorta)
+
+### In Progress 🔄
+
+- None right now
 
 ### Planned Optimizations
 
@@ -61,7 +63,6 @@ The application uses a hybrid retrieval system to find relevant information:
 - Visibility into backend processing steps
 - Rich text support including LaTeX, Markdown, and code blocks
 - Model switching capabilities
-- User authentication system
 
 ### Immediate Tasks
 
