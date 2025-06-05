@@ -47,6 +47,12 @@ The application uses a hybrid retrieval system to find relevant information:
 - Better logic for saving messages
 - Improved embedding and retrieval performance
 - API refinements for smoother frontend-backend communication
+- Redo the DB and everything so that instead of saving in the fronend and causing hell, save in the backend so that even if the user close the site it'll keep running so when they reload they'll have their message
+- Convert to vLLM when I run on my PC, that way it'll run faster and squeeze more performance out of my GPU. Build a system for the backend that'll recognize what's going on and optimize for that machine
+- Actual password hashing and security, setup like a real webapp.
+- Some form of node system, can my computer and PC trade off work together? run a much larger model over three different computers
+- Convert to working webhooks for faster data transfer
+- Remove all unused functions such as testing and legacy. Reorganize files into better folders. lots of backend files that are unuesd or uneeded
 
 ## Future Ideas
 
@@ -63,6 +69,7 @@ The application uses a hybrid retrieval system to find relevant information:
 - Visibility into backend processing steps
 - Rich text support including LaTeX, Markdown, and code blocks
 - Model switching capabilities
+- Other functions, such as image generation, prompt editing, long term storage, memory managment
 
 ### Immediate Tasks
 
