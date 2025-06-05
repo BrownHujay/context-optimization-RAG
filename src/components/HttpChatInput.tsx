@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useChat as useChatContext } from '../context/ChatContext';
-import { useHttpChat } from "../hooks/useHttpChat";
 import { useMessages } from "../hooks";
+import { useStreamingChat } from "../context/StreamingChatComponent";
 
 // GLOBAL STATIC PROTECTION MECHANISMS - shared across all component instances
 let staticIsSending = false;
@@ -17,8 +17,8 @@ export default function HttpChatInput() {
   const accountId = currentUser?.id || '';
   const chatId = activeChat?.id || '';
   
-  // Initialize API hooks - using HTTP streaming instead of Socket.IO
-  const { sendMessage, isStreaming, streamingResponse, resetStream } = useHttpChat(accountId, chatId);
+  // Initialize API hooks 
+  const { sendMessage, isStreaming, resetStream } = useStreamingChat();
   const { addMessage } = useMessages(accountId, chatId);
   
   // Track state for the input field
@@ -26,8 +26,6 @@ export default function HttpChatInput() {
   const [isSending, setIsSending] = useState(false);
   const sendingRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  // Add ref for streaming content display
-  const streamingTextRef = useRef<HTMLPreElement>(null);
   
   // Auto-resize textarea as content grows
   useEffect(() => {
@@ -44,38 +42,11 @@ export default function HttpChatInput() {
     setInput("");
   }, [chatId, resetStream]);
   
-  // Simple direct listener for database reload from streaming completion
-  useEffect(() => {
-    // Just reload the conversation when triggered
-    const handleReloadConversation = () => {
-      if (!activeChat?.id) return;
-      
-      // Wait a moment for database to update
-      setTimeout(async () => {
-        try {
-          // Simple database fetch
-          const response = await fetch(`/conversations/${activeChat.id}`);
-          if (response.ok) {
-            const updatedChat = await response.json();
-            if (updatedChat && setActiveChat) {
-              console.log(`✅ Loaded conversation with ${updatedChat.messages?.length || 0} messages`);
-              setActiveChat(updatedChat);
-            }
-          }
-        } catch (error) {
-          console.error('Error loading conversation:', error);
-        }
-      }, 1000);
-    };
-    
-    // Register event listener
-    window.addEventListener('reload-conversation', handleReloadConversation);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('reload-conversation', handleReloadConversation);
-    };
-  }, [activeChat?.id, setActiveChat]);
+  // This effect used to reload the conversation after streaming completion.
+  // We've removed this to avoid unnecessary DB fetches since we're now
+  // keeping messages in memory and only syncing with DB when needed.
+  // The Messages component will display both API messages and streaming content.
+  // Messages will automatically load from DB when the user navigates to the page.
   
   // Handle message submission
   const handleSubmit = async (e?: React.FormEvent) => {
@@ -144,19 +115,29 @@ export default function HttpChatInput() {
       // STEP 2: Add user message immediately for instant feedback
       console.log(`📝 CRITICAL STEP 2: Adding user message to database for chat ${currentChatId}`);
       // Pass individual arguments instead of an object
-      await addMessage(message, "user", "No response");
+      const userMessageId = await addMessage(message, "user");
       
       // Clear input immediately after showing user message
       setInput("");
+
+      if (!userMessageId) {
+        console.error("❌ Failed to save user message, cannot proceed with streaming.");
+        // Reset sending flags if we can't proceed
+        setIsSending(false);
+        sendingRef.current = false;
+        staticIsSending = false;
+        return; 
+      }
       
       // STEP 3: Start streaming the assistant response IMMEDIATELY
-      console.log(`🚀 CRITICAL STEP 3: Starting real-time streaming for: ${message}`);
+      console.log(`🚀 CRITICAL STEP 3: Starting real-time streaming for: ${message} (originalMessageId: ${userMessageId})`);
       console.log(`Account ID: ${accountId}, Chat ID: ${currentChatId}`);
       
       // FIXED: Never create a new hook instance here - this breaks React's rules of hooks
       // Instead, use the hook from the component level and wait for the active chat
       // to update if needed
-      const success = await sendMessage(message);
+      // Pass the user's message ID as originalMessageId
+      const success = await sendMessage(message, userMessageId);
       console.log(`✅ Stream started: ${success}`);
     } catch (error) {
       console.error("❌ Error in chat process:", error);
@@ -178,88 +159,6 @@ export default function HttpChatInput() {
   
   return (
     <div className="relative w-full max-w-4xl mx-auto">
-      {/* Enhanced streaming response display */}
-      {isStreaming && (
-        <div className="p-4 mb-4 rounded-lg bg-[var(--chat-bubble)]">
-          <div className="flex items-start">
-            <div className="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-white mr-3 flex-shrink-0">
-              AI
-            </div>
-            <div className="flex-1">
-              <div className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
-                {/* Three ways to ensure content appears: */}
-                {/* 1. Direct reference with ID for DOM manipulation */}
-                <pre 
-                  id="http-chat-streaming-content"
-                  ref={streamingTextRef}
-                  className="whitespace-pre-wrap font-sans"
-                  data-is-streaming={isStreaming.toString()}
-                >
-                  {/* 2. React state */}
-                  {streamingResponse || "Thinking..."}
-                </pre>
-                
-                {/* 3. Immediate script execution for direct DOM updates */}
-                <script
-                  dangerouslySetInnerHTML={{
-                    __html: `
-                      // Enhanced streaming display with proper cleanup
-                      (function() {
-                        // Clear any existing intervals to prevent duplicates
-                        if (window.httpStreamingInterval) {
-                          clearInterval(window.httpStreamingInterval);
-                          window.httpStreamingInterval = null;
-                        }
-                        
-                        window.httpUpdateStreamingDisplay = function(text) {
-                          const el = document.getElementById('http-chat-streaming-content');
-                          if (el) el.textContent = text || el.textContent || "Processing...";
-                        };
-                        
-                        // Store interval ID for later cleanup
-                        window.httpStreamingInterval = setInterval(() => {
-                          const el = document.getElementById('http-chat-streaming-content');
-                          
-                          // Stop checking if element is gone or streaming attribute shows it's inactive
-                          if (!el || el.getAttribute('data-is-streaming') === 'false') {
-                            clearInterval(window.httpStreamingInterval);
-                            window.httpStreamingInterval = null;
-                            return;
-                          }
-                          
-                          // Only update if we have data and element exists
-                          if (window.latestStreamingResponse && el) {
-                            window.httpUpdateStreamingDisplay(window.latestStreamingResponse);
-                          }
-                        }, 500); // Less frequent polling
-                        
-                        // Listen for streaming completion and auto-reload messages from DB
-                        window.addEventListener('streaming-complete', () => {
-                          clearInterval(window.httpStreamingInterval);
-                          window.httpStreamingInterval = null;
-                        });
-                        
-                        // Clean up on page changes
-                        window.addEventListener('beforeunload', function() {
-                          if (window.httpStreamingInterval) {
-                            clearInterval(window.httpStreamingInterval);
-                            window.httpStreamingInterval = null;
-                          }
-                        });
-                      })();
-                    `
-                  }}
-                />
-              </div>
-              
-              <div className="text-xs text-[var(--text-tertiary)] mt-2 text-right">
-                <span className="inline-block animate-pulse mr-1">●</span> Live response...
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
       {/* Input form */}
       <form onSubmit={handleSubmit} className="relative flex items-end">
         <textarea

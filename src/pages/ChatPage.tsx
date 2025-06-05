@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Messages from "../components/Messages";
 import ChatInput from "../components/ChatInput";
 import { useChat } from "../context/ChatContext";
-import { useHttpChat } from "../hooks/useHttpChat";
+import { useStreamingChat } from "../context/StreamingChatComponent";
 import { useAuth } from "../context/AuthContext";
 import { useMessages } from "../hooks";
 
@@ -18,7 +18,14 @@ export default function ChatPage() {
   const [pendingMessageHandled, setPendingMessageHandled] = useState(false);
   
   // Handle pending message from localStorage if it exists
-  const { sendMessage } = useHttpChat(accountId, id || '');
+  const { sendMessage, setSession } = useStreamingChat();
+
+  useEffect(() => {
+    if (accountId && id) {
+      setSession(accountId, id); // Initializes your chat session 🎉
+    }
+  }, [accountId, id]);
+
   const { refreshMessages } = useMessages(accountId, id || '');
   
   // Set active chat when ID changes and handle any pending message
@@ -96,15 +103,20 @@ export default function ChatPage() {
   
   return (
     <div className="flex flex-col h-full w-full">
-      {/* Use a stable key to prevent remounting during streaming */}
-      <div 
-        key="chat-page-stable-container"
-        className="flex-1 overflow-y-auto" 
-        style={{ paddingBottom: "100px" }}
-      >
+      {/* Header with chat name - stays fixed */}
+      <div className="p-4 border-b border-[var(--border-color)] z-10 bg-[var(--bg-primary)]">
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">
+          {activeChat?.title || 'Chat'}
+        </h1>
+      </div>
+
+      {/* Container for Messages - let Messages handle its own scrolling */}
+      <div className="flex-1 overflow-hidden">
         <Messages />
       </div>
-      <div className="sticky bottom-0 left-0 right-0 w-full bg-[var(--bg-primary)]">
+
+      {/* Input stays at bottom */}
+      <div className="w-full bg-[var(--bg-primary)] border-t border-[var(--border-color)]">
         <ChatInput />
       </div>
     </div>

@@ -44,3 +44,33 @@ export async function searchMessages(searchData: SearchQuery): Promise<ApiRespon
     body: searchData,
   });
 }
+
+/**
+ * Update an existing message
+ * Used to update assistant responses after streaming completes
+ */
+export async function updateMessage(
+  messageId: string, 
+  updateData: Partial<MessageCreate>
+): Promise<ApiResponse<{ id: string, message: string }>> {
+  if (!messageId) {
+    console.error('Cannot update message: Missing message ID');
+    return {
+      error: 'Missing message ID',
+      data: undefined,
+      status: 400
+    };
+  }
+  
+  // Filter out frontend-only fields (those prefixed with underscore)
+  const apiUpdateData = Object.fromEntries(
+    Object.entries(updateData).filter(([key]) => !key.startsWith('_'))
+  );
+  
+  console.log(`Updating message ${messageId} with data:`, apiUpdateData);
+  
+  return apiRequest(`/messages/${messageId}`, {
+    method: 'PUT',
+    body: apiUpdateData,
+  });
+}

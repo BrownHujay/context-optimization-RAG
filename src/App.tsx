@@ -12,6 +12,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ChatProvider } from "./context/ChatContext";
 import { useAuth } from "./context/AuthContext";
+import { StreamingChatProvider } from "./context/StreamingChatComponent";
 
 // Separate inner component that safely uses the auth context
 // This component should be defined inside the App component to ensure it always has access to context
@@ -74,13 +75,15 @@ export default function App() {
   const AppContent = () => {
     return (
       <ThemeProvider>
-        <NotificationProvider>
-          <AuthProvider>
-            <ChatProvider>
-              <RoutesWithAuth />
-            </ChatProvider>
-          </AuthProvider>
-        </NotificationProvider>
+        <StreamingChatProvider>
+          <NotificationProvider>
+            <AuthProvider>
+              <ChatProvider>
+                <RoutesWithAuth />
+              </ChatProvider>
+            </AuthProvider>
+          </NotificationProvider>
+      </StreamingChatProvider>
       </ThemeProvider>
     );
   };

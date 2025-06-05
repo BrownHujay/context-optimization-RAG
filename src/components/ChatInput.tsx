@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useChat as useChatContext } from '../context/ChatContext';
-import { useHttpChat } from "../hooks/useHttpChat";
 import { useMessages } from "../hooks";
-// Removed useNavigate since we're using direct window.location navigation
+import { useStreamingChat } from "../context/StreamingChatComponent";
 
 // For rate limiting
 const SEND_COOLDOWN = 500; // ms
@@ -17,14 +16,16 @@ export default function ChatInput() {
   const chatId = activeChat?.id || '';
   
   // Initialize API hooks
-  const { sendMessage, isStreaming, streamingResponse, resetStream, summary } = useHttpChat(accountId, chatId);
-  const { addMessage, refreshMessages } = useMessages(accountId, chatId);
+  const { sendMessage, isStreaming, streamingResponse, resetStream, summary } = useStreamingChat();
+  const { addMessage, refreshMessages, updateMessage } = useMessages(accountId, chatId);
   
   // Track state
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSendTimeRef = useRef(0);
+  // Add ref to track if we've already saved the current response
+  const hasProcessedRef = useRef(false);
   const isHomepage = !chatId;
 
   // Handle auto-sizing of textarea
@@ -85,11 +86,25 @@ export default function ChatInput() {
         window.history.pushState({}, '', `/chat/${newChatId}`);
         console.log(`✅ URL updated to: /chat/${newChatId}`);
         
-        // 6. Start streaming response RIGHT AWAY
-        // The prompt+response will be saved as one entry after streaming completes
-        console.log('🎬 Starting streaming response...');
-        await sendMessage(userMessage);
-        console.log('✅ Streaming started');
+        // 4. Add user message to database and get its ID
+        console.log('➕ Adding user message to DB for new chat...');
+        const userMsgId = await addMessage(userMessage, 'user');
+        if (!userMsgId) {
+          throw new Error('Failed to save user message for new chat');
+        }
+        console.log(`✅ User message saved for new chat: ${userMsgId}`);
+
+        // 5. Store message ID in localStorage
+        localStorage.setItem(`last_message_id_${newChatId}`, userMsgId);
+        console.log(`✅ Stored message ID for new chat in localStorage: ${userMsgId}`);
+
+        // No longer need to refresh messages - our in-memory messages will handle this
+        console.log(`✅ User message will be handled by in-memory state`);
+
+        // 7. Start streaming response RIGHT AWAY, passing the userMsgId
+        console.log('🎬 Starting streaming response for new chat...');
+        await sendMessage(userMessage, userMsgId || undefined);
+        console.log('✅ Streaming started for new chat');
       } 
       // EXISTING CHAT
       else if (chatId) {
@@ -98,52 +113,79 @@ export default function ChatInput() {
         // 1. Add user message to database
         const msgId = await addMessage(userMessage, 'user');
         console.log(`✅ User message saved: ${msgId}`);
+
+        if (!msgId) {
+          console.error("❌ Failed to save user message (msgId is null/undefined). Cannot proceed with streaming for existing chat.");
+          // The finally block will reset isSending. We just return here.
+          return;
+        }
+        
+        // Store message ID in localStorage (msgId is now guaranteed to be a string)
+        localStorage.setItem(`last_message_id_${chatId}`, msgId);
+        console.log(`✅ Stored message ID in localStorage: ${msgId}`);
         
         // 2. Refresh messages to display user message
         await refreshMessages();
         console.log(`✅ Messages refreshed - user message should be visible`);
         
-        // 3. Start streaming response RIGHT AWAY
-        console.log('🎬 Starting streaming response...');
-        await sendMessage(userMessage);
-        console.log('✅ Streaming started');
+        // 3. Start streaming response RIGHT AWAY, passing the msgId (now guaranteed to be a string)
+        console.log('🎬 Starting streaming response for existing chat...');
+        await sendMessage(userMessage, msgId);
+        console.log('✅ Streaming started for existing chat');
       }
     } catch (error) {
-      console.error('❌ Error in handleSend:', error);
+      console.error(' Error in handleSend:', error);
     } finally {
-      // Always reset sending state
       setIsSending(false);
     }
   };
 
-  // CRITICAL FIX: Only add assistant message when streaming COMPLETES, not during streaming
-  // This prevents the chat from refreshing unexpectedly during streaming
+  // Automatically save the AI response when streaming completes
   useEffect(() => {
-    // Only save to database AFTER streaming is complete
-    if (!isStreaming && streamingResponse && streamingResponse.trim().length > 0) {
-      console.log('🏁 Streaming COMPLETE - now saving to database');
+    // Only save to database AFTER streaming is complete AND if we haven't processed this response yet
+    if (!isStreaming && streamingResponse && streamingResponse.trim().length > 0 && !hasProcessedRef.current) {
+      console.log(' Streaming COMPLETE - now saving to database');
       
-      // We only save to database AFTER streaming is done
-      const saveCompletedMessage = async () => {
+      // Mark as processed immediately to prevent multiple saves
+      hasProcessedRef.current = true;
+      
+      // Small delay before database operations to ensure UI stability
+      setTimeout(async () => {
         try {
           if (streamingResponse.trim() && chatId && accountId) {
-            console.log('💾 Saving completed assistant message to database...');
+            console.log(' Saving completed assistant message to database...');
             
-            // For existing chats, we add the message as normal
-            if (!isHomepage) {
-              // Save the final message to the database
-              await addMessage(streamingResponse, 'assistant');
-              console.log('✅ Assistant message saved successfully');
+            // Unified logic: Get the message ID that was stored when the user message was created (for both new and existing chats)
+            const lastMessageId = localStorage.getItem(`last_message_id_${chatId}`);
+            
+            if (lastMessageId) {
+              console.log(`📝 Updating message ID: ${lastMessageId} with assistant response. Chat ID: ${chatId}, isHomepage: ${isHomepage}`);
+              
+              const updateSuccess = await updateMessage(lastMessageId, {
+                response: streamingResponse, 
+                _role: 'assistant'
+              });
+              
+              if (updateSuccess) {
+                console.log('✅ Assistant message updated successfully in DB & local state.');
+                localStorage.removeItem(`last_message_id_${chatId}`);
+                console.log(`🗑️ Cleared message ID from localStorage for chat ${chatId}`);
+              } else {
+                console.error('❌ Failed to update message with assistant response. Not creating duplicate.');
+              }
+            } else {
+              console.error(`❌ No last_message_id found in localStorage for chat ${chatId} to update. Assistant response not saved to prevent duplicates.`);
+              // This case indicates a potential logic flaw if a user message was sent but its ID wasn't stored/retrieved.
             }
             
             // If we have a summary, update the chat title
             if (summary?.title && activeChat) {
-              console.log('📝 Updating chat title with summary:', summary.title);
+              console.log(' Updating chat title with summary:', summary.title);
               
               // Update chat title in database
               try {
                 await updateChatTitle(chatId, summary.title);
-                console.log('✅ Chat title updated in database');
+                console.log(' Chat title updated in database');
                 
                 // Update local state with new title
                 const updatedChat = {
@@ -160,29 +202,31 @@ export default function ChatInput() {
                   }));
                 }
               } catch (err) {
-                console.error('❌ Error updating chat title:', err);
+                console.error(' Error updating chat title:', err);
               }
             }
             
-            // Get fresh messages from database (without disrupting user's view)
-            await refreshMessages();
+            // No longer need to refresh messages - the in-memory state will handle this
+            console.log(' In-memory messages already contain the completed response');
             
             // Reset streaming state after everything is done
             setTimeout(() => {
               resetStream();
-              console.log('🔄 Stream reset after database operations');
+              console.log(' Stream reset after database operations');
             }, 300);
           }
         } catch (error) {
-          console.error('❌ Error saving assistant message:', error);
+          console.error(' Error saving assistant message:', error);
           setTimeout(() => resetStream(), 300);
         }
-      };
-      
-      // Small delay before database operations to ensure UI stability
-      setTimeout(saveCompletedMessage, 300);
+      }, 300);
     }
-  }, [isStreaming, streamingResponse, addMessage, resetStream, chatId, accountId, summary, activeChat, setActiveChat]);
+    
+    // Reset our processed flag when streaming starts again
+    if (isStreaming) {
+      hasProcessedRef.current = false;
+    }
+  }, [isStreaming, streamingResponse, chatId, accountId, activeChat, summary, addMessage, refreshMessages, resetStream, updateChatTitle, isHomepage, setActiveChat, updateMessage]);
 
   // Create a reference to directly access and update the streaming content
   const directStreamingRef = useRef<HTMLDivElement>(null);
@@ -196,30 +240,6 @@ export default function ChatInput() {
 
   return (
     <div className={`w-full bg-[var(--bg-primary)] px-4 py-4 ${isHomepage ? "max-w-2xl mx-auto" : ""}`}>
-      {/* CRITICAL FIX: Display the streaming response directly in this component */}
-      {isStreaming && streamingResponse && (
-        <div className="mb-4 p-4 rounded-lg border-2 border-[var(--theme-color)] bg-[var(--chat-bubble)] text-[var(--text-primary)]">
-          <div className="flex items-start">
-            <div className="w-8 h-8 rounded-full bg-[var(--theme-color)] flex items-center justify-center text-white mr-3 flex-shrink-0">
-              AI
-            </div>
-            <div className="flex-grow">
-              <div 
-                ref={directStreamingRef} 
-                className="whitespace-pre-wrap" 
-                id="chat-input-streaming-content"
-              >
-                {streamingResponse}
-              </div>
-              <div className="text-xs text-[var(--text-tertiary)] text-right mt-2">
-                <span className="inline-block animate-pulse mr-1">●</span> 
-                Live response...
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <textarea
         ref={textareaRef}
         value={input}

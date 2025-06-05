@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status, Depends, Body, Request
+from typing import Dict, AsyncGenerator, Optional
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, BackgroundTasks, Body
 from fastapi.responses import StreamingResponse, JSONResponse
 from models import ChatRequest
 from db import (
     store_message, get_recent_messages, get_by_ids,
-    get_account, get_chat
+    get_account, get_chat, update_message  # Added update_message
 )
 from embeddings import get_embedding, rerank, trim_relevant_rags
 from vectorstore import VectorStore
@@ -91,12 +92,25 @@ def chat_logic(req: ChatRequest, model_profile: str = "default"):
     title = summarize_5_word(recent_msgs)
     bullets = summarize_3_bullet(recent_msgs)
     
-    # Store the message with title and bullet summaries
-    logger.info("Storing message")
-    store_message(
-        req.account_id, req.conversation_id, req.message,
-        response, faiss_id, bullets, title
-    )
+    # Store or update the message with title and bullet summaries
+    if req.original_message_id:
+        logger.info(f"Updating message {req.original_message_id} in chat_logic")
+        update_data = {
+            "response": response,
+            "text": req.message, # Ensure user message is also present/updated
+            "faiss_id": faiss_id,
+            "summary": bullets,
+            "title": title
+        }
+        update_data_cleaned = {k: v for k, v in update_data.items() if v is not None}
+        if update_data_cleaned:
+            update_message(message_id=req.original_message_id, **update_data_cleaned)
+    else:
+        logger.info("Storing new message in chat_logic")
+        store_message(
+            req.account_id, req.conversation_id, req.message,
+            response, faiss_id, bullets, title
+        )
     
     # Track token usage and check if full summary needed
     tracker = get_tracker(req.conversation_id)
@@ -205,12 +219,14 @@ async def stream_chat(req: ChatRequest):
         
         # Define the generator separately for better debugging/logging
         gen = stream_chat_response(
-            prompt, 
             req.account_id,
             req.conversation_id,
-            req.message,
+            req.message,  # Pass the user message
+            req.original_message_id, # Pass the original message ID
+            prompt,
+            chat.get("model_profile", "default"),
             faiss_id,
-            chat.get("model_profile", "default")
+            reranked
         )
 
         # Debug check: log the type to be sure it's an async generator
@@ -229,13 +245,15 @@ async def stream_chat(req: ChatRequest):
 
 
 async def stream_chat_response(
-    prompt: str, 
     account_id: str,
     conversation_id: str,
-    user_message: str,
-    faiss_id: int,
-    profile: str = "default"
-) -> AsyncGenerator[bytes, None]:
+    user_message: str, # Added user_message
+    original_message_id: Optional[str], # Added original_message_id
+    prompt: str,
+    profile: str = "default",
+    faiss_id: Optional[int] = None,
+    retrieved_context: Optional[list] = None
+) -> AsyncGenerator[str, None]:
     """Stream LLM response chunks using server-sent events"""
     full_response = ""
     
@@ -278,11 +296,31 @@ async def stream_chat_response(
             title = summarize_5_word(recent_msgs)
             bullets = summarize_3_bullet(recent_msgs)
             
-            # Store message
-            store_message(
-                account_id, conversation_id, user_message,
-                full_response, faiss_id, bullets, title
-            )
+            # Store or update message
+            if original_message_id:
+                logger.info(f"Updating message {original_message_id} in stream_chat_response")
+                update_data = {
+                    "response": full_response,
+                    "summary": bullets,
+                    "title": title,
+                    "faiss_id": faiss_id
+                }
+                # Filter out None values to avoid overwriting existing fields with None
+                update_data_cleaned = {k: v for k, v in update_data.items() if v is not None}
+                if update_data_cleaned:
+                    try:
+                        update_message(message_id=original_message_id, **update_data_cleaned)
+                    except Exception as e:
+                        logger.exception(f"Error updating message {original_message_id} in stream_chat_response: {e}")
+            else:
+                # This case should ideally not happen if client follows protocol (POST /messages first)
+                logger.warning("original_message_id not provided to stream_chat_response. Storing as new message (potential duplicate).")
+                store_message(
+                    account_id, conversation_id, user_message,
+                    full_response, faiss_id, bullets, title
+                )
+
+            logger.info("Stream finished")
             
             # Update tracker
             tracker = get_tracker(conversation_id)

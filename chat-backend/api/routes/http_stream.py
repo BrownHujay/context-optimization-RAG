@@ -9,7 +9,8 @@ import json
 import logging
 from typing import AsyncGenerator, Optional
 
-from api.routes.chat import run_llm_stream, build_prompt, get_recent_messages, get_account, get_chat, store_message
+from api.routes.chat import run_llm_stream, build_prompt, get_recent_messages, get_account, get_chat
+from db import update_message  # For updating the original message
 
 router = APIRouter(prefix="/http", tags=["HTTP Streaming"])
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ class StreamRequest(BaseModel):
     message: str
     account_id: str
     conversation_id: str
+    original_message_id: str  # ID of the message created by POST /messages
 
 @router.post("/stream")
 async def http_stream_chat(request: StreamRequest):
@@ -40,13 +42,8 @@ async def http_stream_chat(request: StreamRequest):
                 media_type="application/json"
             )
         
-        # Store the user message
-        store_message(
-            request.account_id,
-            request.conversation_id,
-            request.message,
-            "No response"  # Initial empty response that will be updated by streaming
-        )
+        # User message is already stored by POST /messages, original_message_id is provided in request.
+        # We will update that message with the full response later.
         
         # Build prompt with context
         recent = get_recent_messages(request.conversation_id, as_dict=True)
@@ -63,6 +60,7 @@ async def http_stream_chat(request: StreamRequest):
                 prompt, 
                 request.account_id,
                 request.conversation_id,
+                request.original_message_id,  # Pass the original message ID
                 chat.get("model_profile", "default")
             ),
             media_type="text/event-stream"
@@ -80,6 +78,7 @@ async def stream_llm_response(
     prompt: str, 
     account_id: str,
     conversation_id: str,
+    original_message_id: str,  # ID of the message to update
     profile: str = "default"
 ) -> AsyncGenerator[bytes, None]:
     """Stream LLM response chunks"""
@@ -147,18 +146,26 @@ async def stream_llm_response(
         })
         yield f"data: {complete_event}\n\n".encode('utf-8')
         
-        # Store the assistant's response
-        # IMPORTANT: For assistant messages, put the content in 'response' field, not 'text'
-        # The frontend Messages.tsx component expects assistant message content in msg.response
-        store_message(
-            account_id,
-            conversation_id,
-            "",  # text field should be empty for assistant messages
-            full_response,  # response field contains the content for assistant messages
-            None,  # faiss_id (optional)
-            None,  # summary (optional)
-            title  # title (optional)
-        )
+        # Update the original message with the assistant's full response and title
+        if original_message_id:
+            update_data = {
+                "response": full_response,
+                "title": title
+            }
+            # Filter out None values or empty strings for title to avoid overwriting with empty data
+            update_data_cleaned = {k: v for k, v in update_data.items() if v is not None and v != ""}
+            
+            if update_data_cleaned:
+                try:
+                    update_message(
+                        message_id=original_message_id,
+                        **update_data_cleaned
+                    )
+                    logger.info(f"Updated message {original_message_id} with full response and title.")
+                except Exception as e:
+                    logger.exception(f"Error updating message {original_message_id}: {e}")
+        else:
+            logger.warning("original_message_id was not provided to stream_llm_response. Cannot update message.")
         
     except Exception as e:
         logger.exception(f"Error in stream_llm_response: {e}")

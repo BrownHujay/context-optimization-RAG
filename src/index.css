@@ -41,7 +41,7 @@
   --theme-color-darker: var(--color-purple-700);
   
   /* Chat bubble for assistant messages - NO BORDERS */
-  --chat-bubble: #f3f4f6;
+  --chat-bubble: #ffffff;
   --chat-bubble-border: transparent;
 }
 
@@ -55,7 +55,7 @@
   --text-secondary: #e5e7eb;
   
   /* Chat bubble for dark mode */
-  --chat-bubble: #2e2e2e;
+  --chat-bubble: #1a1a1a;
   --text-tertiary: #9ca3af;
   
   --border-color: #3a3a3a;

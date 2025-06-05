@@ -76,7 +76,7 @@ def delete_chat_by_id(chat_id: str):
     return {"message": "Chat deleted successfully"}
 
 @router.get("/{chat_id}/messages", response_model=List[dict])
-def get_messages_for_chat(chat_id: str, limit: Optional[int] = None, skip: Optional[int] = 0):
+def get_messages_for_chat(chat_id: str, limit: Optional[int] = None, skip: Optional[int] = 0, bottom_up: bool = False):
     # Verify chat exists
     chat = get_chat(chat_id)
     if not chat:
@@ -85,7 +85,9 @@ def get_messages_for_chat(chat_id: str, limit: Optional[int] = None, skip: Optio
             detail="Chat not found"
         )
     
-    messages = get_chat_messages(chat_id, limit, skip)
+    # Use the bottom_up parameter to determine sort order
+    # When bottom_up is True, we'll get newest messages first (better for UI)
+    messages = get_chat_messages(chat_id, limit, skip, bottom_up=bottom_up)
     return object_id_to_str(messages)
 
 @router.get("/{chat_id}/recent-messages", response_model=List[dict])

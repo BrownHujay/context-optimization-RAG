@@ -134,10 +134,57 @@ def store_message(account_id, chat_id, text, response, faiss_id=None, summary=No
         "timestamp": datetime.now()
     })
 
-def get_chat_messages(chat_id, limit=None, skip=0):
-    """Get all messages in a chat, sorted chronologically"""
+def update_message(message_id, response=None, text=None, summary=None, title=None):
+    """Update an existing message
+    
+    Args:
+        message_id: The ID of the message to update
+        response: New response text (optional)
+        text: New user message text (optional)
+        summary: New summary (optional)
+        title: New title (optional)
+        
+    Returns:
+        The update result from MongoDB
+    """
+    # Build update object with only provided fields
+    update_fields = {}
+    if response is not None:
+        update_fields["response"] = response
+    if text is not None:
+        update_fields["text"] = text
+    if summary is not None:
+        update_fields["summary"] = summary
+    if title is not None:
+        update_fields["title"] = title
+        
+    # Only update if we have fields to update
+    if update_fields:
+        update_fields["updated_at"] = datetime.now()
+        
+        print(f"Updating message {message_id} with fields: {list(update_fields.keys())}")
+        return messages_col.update_one(
+            {"_id": ObjectId(message_id)},
+            {"$set": update_fields}
+        )
+    return None
+
+def get_chat_messages(chat_id: str, limit: Optional[int] = None, skip: int = 0, bottom_up: bool = False) -> List[dict]:
+    """Get all messages in a chat, sorted chronologically
+    
+    Args:
+        chat_id: The chat ID to get messages for
+        limit: Maximum number of messages to return
+        skip: Number of messages to skip
+        bottom_up: If True, returns messages in descending order (newest first)
+        
+    Returns:
+        List of messages, sorted by timestamp
+    """
     query = {"chat_id": ObjectId(chat_id)}
-    cursor = messages_col.find(query).sort("timestamp", 1).skip(skip)
+    # Sort order: 1 = ascending (oldest first), -1 = descending (newest first)
+    sort_order = -1 if bottom_up else 1
+    cursor = messages_col.find(query).sort("timestamp", sort_order).skip(skip)
     
     if limit:
         cursor = cursor.limit(limit)

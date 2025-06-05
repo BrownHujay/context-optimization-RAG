@@ -72,7 +72,8 @@ export default function ChatPage() {
       <div className="flex-1 overflow-hidden">
         <Messages />
       </div>
-      
+     
+
       <ChatInput />
     </div>
   );

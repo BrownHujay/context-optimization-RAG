@@ -67,10 +67,13 @@ class MessageResponse(BaseModel):
     title: Optional[str] = None
     timestamp: datetime
 
+from typing import Optional
+
 class ChatRequest(BaseModel):
     message: str
     conversation_id: str
     account_id: str
+    original_message_id: Optional[str] = None  # ID of the message if already created
 
 class SearchQuery(BaseModel):
     account_id: str
