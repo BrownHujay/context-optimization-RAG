@@ -1,8 +1,7 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import Navbar from "./components/LeftNavbar";
 import Homepage from "./pages/Homepage";
-import AccountPage from "./pages/AccountPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import SettingsPage from "./pages/SettingsPage";
 import ChatPage from "./pages/ChatPage";
@@ -11,7 +10,6 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AuthProvider } from "./context/AuthContext";
 import { ChatProvider } from "./context/ChatContext";
-import { useAuth } from "./context/AuthContext";
 import { StreamingChatProvider } from "./context/StreamingChatComponent";
 
 // Separate inner component that safely uses the auth context
@@ -19,7 +17,7 @@ import { StreamingChatProvider } from "./context/StreamingChatComponent";
 const RoutesWithAuth = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { currentUser } = useAuth(); // This will now always have access to AuthProvider
+  // No longer need currentUser since we've removed auth checks
   const [isNavbarVisible, setIsNavbarVisible] = useState(true);
 
   // Handle new chat creation
@@ -53,11 +51,8 @@ const RoutesWithAuth = () => {
               />
               <Route
                 path="/chat/:id"
-                element={
-                  currentUser ? <ChatPage /> : <Navigate to="/" replace />
-                }
+                element={<ChatPage />}
               />
-              <Route path="/account" element={<AccountPage />} />
               <Route path="/statistics" element={<StatisticsPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>

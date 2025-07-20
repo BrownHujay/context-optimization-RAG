@@ -9,11 +9,11 @@ from db import (
     get_account, get_chat, update_message  # Added update_message
 )
 print("beans")
-#from embeddings import get_embedding, rerank, trim_relevant_rags
+from embeddings import get_embedding, rerank, trim_relevant_rags
 print("hi again")
 from vectorstore import VectorStore
 from summarizer import summarize_history, summarize_5_word, summarize_3_bullet
-from llm import run_llm, chat_stream, get_model_path, get_model_type, MODEL_CONFIGS, get_model
+from llm import run_llm, run_llm_stream
 from auth import verify_api_key
 from prompt_builders import build_model_specific_prompt
 import numpy as np
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 vs = VectorStore(dim=768)
 
 
-def chat_logic(req: ChatRequest):
+def chat_logic(req: ChatRequest, model_profile: str = "default"):
     """Original chat logic for HTTP endpoint"""
     # Verify account and chat
     logger.info("Verifying account and chat")
@@ -42,29 +42,41 @@ def chat_logic(req: ChatRequest):
     chat = get_chat(req.conversation_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    
-    reranked = ""
 
+    # Embed and store message
+    logger.info("Embedding message")
+    user_embed = get_embedding(req.message)
+    faiss_id = int(np.random.randint(1, 2**63 - 1))
+    vs.add(user_embed, req.message, req.conversation_id)
+
+    # Retrieval + reranking
+    logger.info("Retrieving similar messages")
+    similar_ids = vs.search(user_embed)
+    related_messages = get_by_ids(similar_ids)
+    candidates = [msg["text"] for msg in related_messages] if related_messages else []
+    
+    # Apply initial reranking
+    logger.info("Applying reranking")
+    reranked = rerank(req.message, candidates) if candidates else []
+    
+    # Auto-trim RAGs if the setting is enabled in account settings
+    logger.info("Auto-trimming RAGs")
+    rag_auto_trim = account.get("settings", {}).get("rag_auto_trim", True)
+    if rag_auto_trim and reranked:
+        sim_threshold = account.get("settings", {}).get("rag_sim_threshold", 0.5)
+        reranked = trim_relevant_rags(req.message, reranked, sim_threshold)
 
     # Get recent messages
     logger.info("Getting recent messages")
     recent = get_recent_messages(req.conversation_id)
 
-    # Use model from request or default
-    model_profile = req.model or "default"
-    
     # Build prompt
     logger.info("Building prompt")
-    model_path = get_model_path(model_profile)
-    model_type = get_model_type(model_profile)
-    
-    # Build model-specific prompt (all models now return strings)
-    prompt = build_model_specific_prompt(
+    prompt = build_deepseek_prompt(
         message=req.message,
         recent=recent,
         retrieved=reranked,
-        system_prompt=account.get("system_prompt"),
-        model_path=model_path
+        system_prompt=account.get("system_prompt")
     )
 
     # Generate response (non-streamed fallback)
@@ -91,7 +103,7 @@ def chat_logic(req: ChatRequest):
         update_data = {
             "response": response,
             "text": req.message, # Ensure user message is also present/updated
-            "faiss_id": 0,
+            "faiss_id": faiss_id,
             "summary": bullets,
             "title": title
         }
@@ -102,7 +114,7 @@ def chat_logic(req: ChatRequest):
         logger.info("Storing new message in chat_logic")
         store_message(
             req.account_id, req.conversation_id, req.message,
-            response, 0, bullets, title
+            response, faiss_id, bullets, title
         )
     
     # Track token usage and check if full summary needed
@@ -127,7 +139,8 @@ def chat_logic(req: ChatRequest):
 @router.post("", dependencies=[Depends(verify_api_key)])
 def chat_route(req: ChatRequest):
     """HTTP endpoint for non-streaming chat"""
-    return chat_logic(req)
+    logger.info("Chat route called")
+    return chat_logic(req, model_profile="default")
 
 
 @router.post("/stream")
@@ -148,20 +161,70 @@ async def stream_chat(req: ChatRequest):
                 content={"error": "Invalid chat ID"}, 
                 status_code=400
             )
+            
+        # Store the user message (initial part)
+        user_embed = get_embedding(req.message)
+        faiss_id = int(np.random.randint(1, 2**63 - 1))
+        vs.add(user_embed, req.message, req.conversation_id)
+        
+        # Retrieval + reranking
+        vector_search_results = vs.search(user_embed)
+        candidates = []
+        candidate_embeddings = []
+
+        if isinstance(vector_search_results, list):
+            for item in vector_search_results:
+                if isinstance(item, dict):
+                    text = item.get("message") or item.get("text") or item.get("content")
+                    if text and isinstance(text, str):
+                        candidates.append(text)
+                        try:
+                            if isinstance(item.get("embedding"), list):
+                                embedding = np.array(item["embedding"])
+                            else:
+                                embedding = get_embedding(text)
+                            candidate_embeddings.append(embedding)
+                        except Exception:
+                            continue
+
+        similarity_threshold = account.get("settings", {}).get("rag_sim_threshold", 0.65)
+        
+        if candidates:
+            if len(candidate_embeddings) == len(candidates):
+                reranked = rerank(
+                    req.message, candidates, candidate_embeddings,
+                    top_k=5, similarity_threshold=similarity_threshold
+                )
+            else:
+                reranked = rerank(
+                    req.message, candidates,
+                    top_k=5, similarity_threshold=similarity_threshold
+                )
+        else:
+            reranked = []
+
+        # Optional trimming
+        rag_auto_trim = account.get("settings", {}).get("rag_auto_trim", True)
+        if rag_auto_trim and isinstance(reranked, list) and reranked:
+            try:
+                sim_threshold = account.get("settings", {}).get("rag_sim_threshold", 0.5)
+                reranked = trim_relevant_rags(req.message, reranked, sim_threshold)
+            except Exception as e:
+                logger.warning(f"Failed to trim relevant RAGs: {e}")
+                pass
+
         # Build prompt with context
         recent = get_recent_messages(req.conversation_id, as_dict=True)
-        model_profile = req.model or "default"
-        model_path = get_model_path(model_profile)
-        model_type = get_model_type(model_profile)
-        
+        from llm import get_model_path
+        model_path = get_model_path("default")
         prompt = build_model_specific_prompt(
             message=req.message,
             recent=recent,
-            retrieved=[],
+            retrieved=reranked,
             system_prompt=account.get("system_prompt"),
             model_path=model_path
         )
-
+        
         # Define the generator separately for better debugging/logging
         gen = stream_chat_response(
             req.account_id,
@@ -169,9 +232,9 @@ async def stream_chat(req: ChatRequest):
             req.message,  # Pass the user message
             req.original_message_id, # Pass the original message ID
             prompt,
-            model_profile,
-            0,
-            ""
+            chat.get("model_profile", "default"),
+            faiss_id,
+            reranked
         )
 
         # Debug check: log the type to be sure it's an async generator
@@ -214,7 +277,7 @@ async def stream_chat_response(
         yield f"data: {event_data}\n\n".encode("utf-8")
         
         # Stream chunks
-        async for chunk in chat_stream(prompt, profile=profile):
+        async for chunk in run_llm_stream(prompt, profile=profile):
             # Convert chunk to string
             chunk_str = str(chunk) if chunk is not None else ""
             full_response += chunk_str
@@ -311,38 +374,12 @@ async def stream_chat_response(
         yield f"data: {error_event}\n\n".encode("utf-8")
 
 
-@router.get("/models")
-def get_available_models():
-    """Get list of available models with their metadata"""
-    models = []
-    for profile, config in MODEL_CONFIGS.items():
-        models.append({
-            "id": profile,
-            "name": profile.replace("-", " ").title(),
-            "description": f"{config['model_type'].title()} - {config['max_tokens']} tokens",
-            "max_tokens": config["max_tokens"],
-            "context_length": config["n_ctx"],
-            "model_type": config["model_type"]
-        })
-    return {"models": models}
-
-@router.post("/models/{model_id}/preload")
-def preload_model(model_id: str):
-    """Preload a specific model"""
-    if model_id not in MODEL_CONFIGS:
-        raise HTTPException(status_code=404, detail="Model not found")
-    
-    try:
-        model = get_model(model_id)
-        if model is None:
-            raise HTTPException(status_code=500, detail="Failed to load model")
-        return {"message": f"Model '{model_id}' preloaded successfully"}
-    except Exception as e:
-        logger.error(f"Error preloading model {model_id}: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to preload model: {str(e)}")
-
 @router.post("/rag/trim")
 def trim_rag(query: str = Body(...), chunks: list[str] = Body(...), sim_threshold: float = Body(0.5), rag_auto_trim: bool = Body(True)):
     """Trim RAG chunks based on relevance"""
-    return {"useful_chunks": chunks}
+    if rag_auto_trim:
+        useful = trim_relevant_rags(query, chunks, sim_threshold)
+        return {"useful_chunks": useful}
+    else:
+        return {"useful_chunks": chunks}
 

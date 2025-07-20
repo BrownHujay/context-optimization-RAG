@@ -1,9 +1,15 @@
 # main.py - Entry point for the application
+print("loading")
 import uvicorn
+print("loading")
 import os
+print("loading")
 import logging
+print("loading")
 from api.app import create_app
+print("loading again")
 from preload_models import preload_models
+print("I think this fails it.")
 
 # Configure logging
 logging.basicConfig(
@@ -28,4 +34,5 @@ if not DEBUG:
     logger.info("Model preloading complete, starting server")
 
 if __name__ == "__main__":
+    print("starting")
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)

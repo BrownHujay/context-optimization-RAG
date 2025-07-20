@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
 import { useChat as useChatContext } from '../context/ChatContext';
-import { useMessages } from "../hooks";
 import { useStreamingChat } from "../context/StreamingChatComponent";
+import { useMessages } from "../hooks";
+import { useAuth } from '../context/AuthContext';
 
 // GLOBAL STATIC PROTECTION MECHANISMS - shared across all component instances
 let staticIsSending = false;
@@ -10,10 +10,10 @@ let lastSendTimestamp = 0;
 const sentMessageHashes = new Set<string>();
 
 export default function HttpChatInput() {
-  const { currentUser } = useAuth();
   const { activeChat, setActiveChat, createNewChat } = useChatContext();
+  const { currentUser } = useAuth();
   
-  // Get account and chat IDs
+  // Get the account ID from the auth context
   const accountId = currentUser?.id || '';
   const chatId = activeChat?.id || '';
   

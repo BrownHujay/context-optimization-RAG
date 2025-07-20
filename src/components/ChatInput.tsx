@@ -1,32 +1,43 @@
 import { useState, useRef, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
 import { useChat as useChatContext } from '../context/ChatContext';
+import { useAuth } from '../context/AuthContext';
 import { useMessages } from "../hooks";
 import { useStreamingChat } from "../context/StreamingChatComponent";
+import ModelSelector from './ModelSelector';
+import { modelsApi } from '../api/modelsApi';
 
 // For rate limiting
 const SEND_COOLDOWN = 500; // ms
 
 export default function ChatInput() {
-  const { currentUser } = useAuth();
   const { activeChat, setActiveChat, createNewChat, chats, updateChatTitle } = useChatContext();
+  const { currentUser } = useAuth();
   
-  // Get account and chat IDs
+  // Get the account ID from the auth context
   const accountId = currentUser?.id || '';
   const chatId = activeChat?.id || '';
   
   // Initialize API hooks
-  const { sendMessage, isStreaming, streamingResponse, resetStream, summary } = useStreamingChat();
+  const { sendMessage, isStreaming, streamingResponse, resetStream, summary, setSession } = useStreamingChat();
   const { addMessage, refreshMessages, updateMessage } = useMessages(accountId, chatId);
   
   // Track state
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("llama-3.2-3b");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSendTimeRef = useRef(0);
   // Add ref to track if we've already saved the current response
   const hasProcessedRef = useRef(false);
   const isHomepage = !chatId;
+
+  // Set up streaming session when chat or account changes
+  useEffect(() => {
+    if (accountId && chatId) {
+      console.log('🔗 Setting streaming session:', { accountId, chatId });
+      setSession(accountId, chatId);
+    }
+  }, [accountId, chatId, setSession]);
 
   // Handle auto-sizing of textarea
   useEffect(() => {
@@ -36,6 +47,22 @@ export default function ChatInput() {
       textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, [input]);
+
+  // Handle model selection and preloading
+  const handleModelPreload = async (modelId: string) => {
+    try {
+      await modelsApi.preloadModel(modelId);
+      console.log(`Model ${modelId} preloaded successfully`);
+    } catch (error) {
+      console.error(`Failed to preload model ${modelId}:`, error);
+      throw error;
+    }
+  };
+
+  const handleModelChange = (modelId: string) => {
+    setSelectedModel(modelId);
+    console.log(`Selected model changed to: ${modelId}`);
+  };
 
   const handleSend = async () => {
     // Don't send empty messages
@@ -78,15 +105,19 @@ export default function ChatInput() {
         setActiveChat(newChat);
         console.log(`✅ Active chat set to: ${newChat.title} (${newChat.id})`);
         
-        // 4. We DON'T save the user message separately, just keep the message in memory
+        // 4. Set up streaming session immediately for new chat
+        setSession(accountId, newChatId);
+        console.log(`✅ Streaming session set for new chat: ${newChatId}`);
+        
+        // 5. We DON'T save the user message separately, just keep the message in memory
         // for the AI response. This ensures we save both prompt and response in one DB entry.
         console.log(`✅ User message stored: ${userMessage.substring(0, 30)}...`);
         
-        // 5. Update URL without full page reload
+        // 6. Update URL without full page reload
         window.history.pushState({}, '', `/chat/${newChatId}`);
         console.log(`✅ URL updated to: /chat/${newChatId}`);
         
-        // 4. Add user message to database and get its ID
+        // 7. Add user message to database and get its ID
         console.log('➕ Adding user message to DB for new chat...');
         const userMsgId = await addMessage(userMessage, 'user');
         if (!userMsgId) {
@@ -94,21 +125,23 @@ export default function ChatInput() {
         }
         console.log(`✅ User message saved for new chat: ${userMsgId}`);
 
-        // 5. Store message ID in localStorage
+        // 8. Store message ID in localStorage
         localStorage.setItem(`last_message_id_${newChatId}`, userMsgId);
         console.log(`✅ Stored message ID for new chat in localStorage: ${userMsgId}`);
 
         // No longer need to refresh messages - our in-memory messages will handle this
         console.log(`✅ User message will be handled by in-memory state`);
 
-        // 7. Start streaming response RIGHT AWAY, passing the userMsgId
+        // 9. Start streaming response RIGHT AWAY, passing the userMsgId and selected model
         console.log('🎬 Starting streaming response for new chat...');
-        await sendMessage(userMessage, userMsgId || undefined);
+        
+        // Use the streaming context to send the message with selected model
+        sendMessage(userMessage, userMsgId, selectedModel);
         console.log('✅ Streaming started for new chat');
       } 
       // EXISTING CHAT
       else if (chatId) {
-        console.log("💬 Sending message in existing chat...");
+        console.log('🎬 Sending streaming message for existing chat...');
         
         // 1. Add user message to database
         const msgId = await addMessage(userMessage, 'user');
@@ -130,7 +163,7 @@ export default function ChatInput() {
         
         // 3. Start streaming response RIGHT AWAY, passing the msgId (now guaranteed to be a string)
         console.log('🎬 Starting streaming response for existing chat...');
-        await sendMessage(userMessage, msgId);
+        await sendMessage(userMessage, msgId, selectedModel);
         console.log('✅ Streaming started for existing chat');
       }
     } catch (error) {
@@ -240,6 +273,7 @@ export default function ChatInput() {
 
   return (
     <div className={`w-full bg-[var(--bg-primary)] px-4 py-4 ${isHomepage ? "max-w-2xl mx-auto" : ""}`}>
+      
       <textarea
         ref={textareaRef}
         value={input}
@@ -254,24 +288,38 @@ export default function ChatInput() {
         rows={1}
         style={{ resize: "none", maxHeight: "150px" }}
         className="w-full p-3 bg-[var(--bg-tertiary)] rounded-md text-[var(--text-primary)] caret-[var(--text-primary)] outline-none overflow-y-auto focus:ring-2 focus:ring-[var(--theme-color)]"
-        disabled={isStreaming || !currentUser}
+        disabled={isStreaming}
       />
-      <div className="mt-2 flex justify-between items-center">
-        <div className="text-sm text-[var(--text-tertiary)]">
+      <div className="mt-2 flex items-center justify-between gap-4">
+        {/* Model selector on the far left */}
+        <div className="flex-shrink-0">
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={handleModelChange}
+            onModelPreload={handleModelPreload}
+          />
+        </div>
+        
+        {/* Status indicator in the center (if streaming) */}
+        <div className="flex-1 text-center">
           {isStreaming ? (
-            <span className="flex items-center transition-opacity duration-300 ease-in-out">
+            <span className="flex items-center justify-center transition-opacity duration-300 ease-in-out text-sm text-[var(--text-tertiary)]">
               <span className="animate-pulse mr-2 text-[var(--theme-color)]">●</span>
               AI is responding...
             </span>
           ) : null}
         </div>
-        <button
-          onClick={handleSend}
-          className="px-4 py-2 bg-[var(--theme-color)] text-white rounded hover:bg-[var(--theme-color-dark)] transition disabled:opacity-50"
-          disabled={isSending || isStreaming || input.trim() === "" || !currentUser}
-        >
-          Send
-        </button>
+        
+        {/* Send button on the far right */}
+        <div className="flex-shrink-0">
+          <button
+            onClick={handleSend}
+            className="px-4 py-2 bg-[var(--theme-color)] text-white rounded hover:bg-[var(--theme-color-dark)] transition disabled:opacity-50 font-medium"
+            disabled={isSending || isStreaming || input.trim() === ""}
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );

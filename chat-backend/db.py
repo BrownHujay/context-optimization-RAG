@@ -3,6 +3,7 @@ from pymongo import MongoClient
 import os
 from datetime import datetime
 from bson import ObjectId
+from typing import Optional, List
 
 client = MongoClient(os.getenv("MONGO_URI", "mongodb://localhost:27017"))
 db = client.chatbot_db
@@ -147,6 +148,18 @@ def update_message(message_id, response=None, text=None, summary=None, title=Non
     Returns:
         The update result from MongoDB
     """
+    # Check if this is a temporary ID (should be rare now that streaming endpoint creates real messages)
+    if message_id.startswith('temp-'):
+        print(f"⚠️ WARNING: Received temporary message ID: {message_id}")
+        print(f"This suggests the streaming endpoint failed to create a real message.")
+        print(f"Skipping update to avoid errors.")
+        return None
+    
+    # Validate that this looks like a valid ObjectId
+    if not message_id or len(message_id) != 24:
+        print(f"Invalid message ID format: {message_id}")
+        return None
+    
     # Build update object with only provided fields
     update_fields = {}
     if response is not None:
@@ -163,10 +176,19 @@ def update_message(message_id, response=None, text=None, summary=None, title=Non
         update_fields["updated_at"] = datetime.now()
         
         print(f"Updating message {message_id} with fields: {list(update_fields.keys())}")
-        return messages_col.update_one(
-            {"_id": ObjectId(message_id)},
-            {"$set": update_fields}
-        )
+        try:
+            result = messages_col.update_one(
+                {"_id": ObjectId(message_id)},
+                {"$set": update_fields}
+            )
+            if result.matched_count == 0:
+                print(f"No message found with ID {message_id}")
+            else:
+                print(f"Successfully updated message {message_id}")
+            return result
+        except Exception as e:
+            print(f"Error updating message {message_id}: {e}")
+            return None
     return None
 
 def get_chat_messages(chat_id: str, limit: Optional[int] = None, skip: int = 0, bottom_up: bool = False) -> List[dict]:

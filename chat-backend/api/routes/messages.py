@@ -14,11 +14,17 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 def create_message(message: MessageCreate):
-    # Validate that both text and response fields are present
-    if not message.text or not message.response:
+    print(f"\n🚀 POST /messages called!")
+    print(f"Message data: account_id={message.account_id}, chat_id={message.chat_id}")
+    print(f"Text: '{message.text}'")
+    print(f"Response: '{message.response}'")
+    
+    # Validate that text field is present (response is optional for streaming)
+    if not message.text:
+        print(f"❌ Validation failed: No text provided")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Both text and response fields must be provided"
+            detail="Text field must be provided"
         )
     
     # Verify account exists
@@ -39,20 +45,34 @@ def create_message(message: MessageCreate):
     
     # Log the message data to help with debugging
     print(f"Storing message: account_id={message.account_id}, chat_id={message.chat_id}")
-    print(f"Text: {message.text[:50]}... Response: {message.response[:50]}...")
+    print(f"Text: {message.text[:50]}...")
+    if message.response:
+        print(f"Response: {message.response[:50]}...")
+    else:
+        print("Response: [None - will be updated via streaming]")
     
-    # Store the message
+    # Store the message (response can be None for streaming scenarios)
+    print(f"📝 Calling store_message...")
     result = store_message(
         message.account_id,
         message.chat_id,
         message.text,
-        message.response,
+        message.response or "",  # Use empty string if no response provided
         message.faiss_id,
         message.summary,
         message.title
     )
     
-    return {"id": str(result.inserted_id), "message": "Message stored successfully"}
+    if result and result.inserted_id:
+        new_id = str(result.inserted_id)
+        print(f"✅ Message created successfully with ID: {new_id}")
+        return {"id": new_id, "message": "Message stored successfully"}
+    else:
+        print(f"❌ Failed to create message - result: {result}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create message"
+        )
 
 # Update an existing message
 @router.put("/{message_id}", response_model=dict)

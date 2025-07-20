@@ -2,12 +2,15 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useMessages } from "../hooks";
 import type { Message as ApiMessage } from "../api/types";
-import { useAuth } from "../context/AuthContext";
 import { useChat } from "../context/ChatContext";
+import { useAuth } from '../context/AuthContext';
 import { AnimatePresence, motion } from "framer-motion";
 import React from "react";
 import {useNavigate} from "react-router";
 import { useStreamingChat } from "../context/StreamingChatComponent";
+import MarkdownRenderer from "./MarkdownRenderer";
+import ThinkingDropdown from "./ThinkingDropdown";
+import { parseThinkingMessage } from "../utils/thinkingParser";
 
 // Local Message interface for component display
 interface DisplayMessage {
@@ -21,14 +24,19 @@ interface DisplayMessage {
 }
 
 export default function Messages(): React.ReactElement {
-  const { currentUser } = useAuth();
   const { activeChat } = useChat();
+  const { currentUser } = useAuth();
+  
+  // Get the account ID from the auth context
   const accountId = currentUser?.id || '';
   const chatId = activeChat?.id || '';
 
   
   // Get the streaming state and messages from useStreamingChat hook
-  const { streamingResponse, isStreaming, streamingId, messages: streamMessages } = useStreamingChat();
+  const { streamingResponse, isStreaming, streamingId, messages: streamMessages, chatId: streamingChatId, accountId: streamingAccountId } = useStreamingChat();
+  
+  // Only show streaming content if it's for the current chat
+  const isStreamingForCurrentChat = streamingChatId === chatId && streamingAccountId === accountId;
   
   // Timer reference for handling streaming state transitions
   const lastStreamingTimerRef = useRef<number | null>(null);
@@ -70,107 +78,24 @@ export default function Messages(): React.ReactElement {
     }
   }, []);
   
-  // Refs for scroll management
+  // Refs for scroll management 
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  const lastScrollPositionRef = useRef<number>(0);
-  const scrollTimerRef = useRef<number | null>(null);
   
-  // Track when user last scrolled manually
-  const userScrollTimestampRef = useRef<number>(0);
-  
-  // Smart scroll detector - only auto-scroll if user is near bottom and hasn't scrolled recently
-  const checkShouldAutoScroll = useCallback(() => {
-    if (!scrollContainerRef.current) return true;
-    
-    const { scrollHeight, scrollTop, clientHeight } = scrollContainerRef.current;
-    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-    
-    // Calculate time since last manual scroll
-    const timeSinceLastScroll = Date.now() - userScrollTimestampRef.current;
-    
-    // If within 10% of container height from bottom OR user hasn't scrolled in last 500ms, auto-scroll
-    // This is more permissive to ensure we don't lock scrolling
-    const scrollThresholdPercent = 10; // 10% of container height
-    const isNearBottom = distanceFromBottom < (clientHeight * scrollThresholdPercent / 100);
-    const hasScrollPausePassed = timeSinceLastScroll > 500;
-    
-    // Consider both conditions, but prioritize user scroll intent
-    const shouldScroll = isNearBottom && (hasScrollPausePassed || userScrollTimestampRef.current === 0);
-    console.log(`Auto-scroll decision: ${shouldScroll ? 'Yes' : 'No'} (near bottom: ${isNearBottom}, time since scroll: ${timeSinceLastScroll}ms)`);
-    setShouldAutoScroll(shouldScroll);
-    return shouldScroll;
-  }, []);
-  
-  // Function to scroll to bottom of messages with scroll conditions
-  const scrollToBottom = useCallback(() => {
-    // Prevent forced scrolling if the component was just mounted or user actively scrolling
-    const isUserActivelyScrolling = Date.now() - userScrollTimestampRef.current < 300;
-    
-    if (shouldAutoScroll && messagesEndRef.current && !isUserActivelyScrolling) {
+  // Gentle scroll animation for new messages 
+  const scrollToBottomGently = useCallback(() => {
+    if (messagesEndRef.current) {
       try {
-        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        // Use a gentler scroll with custom timing
+        messagesEndRef.current.scrollIntoView({ 
+          behavior: 'smooth',
+          block: 'end'
+        });
       } catch (err) {
-        console.error('Error scrolling to bottom:', err);
+        console.error('Error scrolling:', err);
       }
     }
-  }, [shouldAutoScroll]);
-  
-  // Setup scroll event listener to detect when user scrolls
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (!container) return;
-    
-    const handleScroll = () => {
-      // Record that user just manually scrolled
-      userScrollTimestampRef.current = Date.now();
-      
-      // Store current position
-      lastScrollPositionRef.current = container.scrollTop;
-      
-      // Reset auto-scroll during streaming if user scrolls up
-      const { scrollHeight, scrollTop, clientHeight } = container;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      
-      // IMPORTANT: Create a local variable to track scroll state
-      // This ensures we don't interfere with user scrolling
-      let newShouldScroll = shouldAutoScroll;
-
-      // If user scrolls more than 100px from bottom, disable auto-scroll
-      // But if they scroll back to near bottom, re-enable it
-      if (distanceFromBottom > 100) {
-        newShouldScroll = false;
-        console.log('User scrolled away from bottom, disabling auto-scroll');
-      } else if (distanceFromBottom < 50) {
-        newShouldScroll = true;
-        console.log('User scrolled to bottom, enabling auto-scroll');
-      }
-      
-      // Only update state if it changed to prevent render loops
-      if (newShouldScroll !== shouldAutoScroll) {
-        setShouldAutoScroll(newShouldScroll);
-      }
-      
-      // Always clear previous timer to prevent conflicts
-      if (scrollTimerRef.current) {
-        window.clearTimeout(scrollTimerRef.current);
-      }
-      
-      // Set a timer to check scroll position after user stops scrolling
-      scrollTimerRef.current = window.setTimeout(() => {
-        checkShouldAutoScroll();
-      }, 300); // Reduced timeout for more responsive UI
-    };
-    
-    container.addEventListener('scroll', handleScroll);
-    return () => {
-      container.removeEventListener('scroll', handleScroll);
-      if (scrollTimerRef.current) {
-        window.clearTimeout(scrollTimerRef.current);
-      }
-    };
-  }, [checkShouldAutoScroll]);
+  }, []);
 
   //REFRESH/RENDER
 
@@ -215,12 +140,8 @@ export default function Messages(): React.ReactElement {
   
   // Handle scroll logic after messages or streaming response updates
   useEffect(() => {
-    // Only scroll if we should auto-scroll based on user's position
-    if (shouldAutoScroll) {
-      console.log('Auto-scrolling because user is near bottom');
-      scrollToBottom();
-    }
-  }, [displayMessages, streamingResponse, shouldAutoScroll, scrollToBottom]);
+    scrollToBottomGently();
+  }, [displayMessages, streamingResponse, scrollToBottomGently]);
 
   // Process new messages when they arrive without swapping existing ones
   useEffect(() => {
@@ -277,10 +198,9 @@ export default function Messages(): React.ReactElement {
       });
       
       setDisplayMessages(dbMessages);
-      checkShouldAutoScroll();
     }
-  }, [apiMessages, chatId, displayMessages.length, checkShouldAutoScroll]);
-  
+  }, [apiMessages, chatId, displayMessages.length]);
+
   // Handle streaming and permanent messages in a unified way
   useEffect(() => {
     if (!chatId) return;
@@ -321,7 +241,7 @@ export default function Messages(): React.ReactElement {
     }
     
     // Handle creation of a streaming message or updating an existing one
-    if (streamingResponse && streamingId) {
+    if (streamingResponse && streamingId && isStreamingForCurrentChat) {
       setDisplayMessages(currentMessages => {
         // Check if the streaming message already exists in our list
         const streamingMessageIndex = currentMessages.findIndex(m => m.id === streamingId);
@@ -353,34 +273,12 @@ export default function Messages(): React.ReactElement {
         return updatedMessages;
       });
     }
-  }, [chatId, streamMessages, streamingResponse, isStreaming, streamingId]);
+  }, [chatId, streamMessages, streamingResponse, isStreaming, streamingId, isStreamingForCurrentChat]);
 
   // Ensure messages are scrolled into view when they change
   useEffect(() => {
-    // Always use bottom-up loading for optimal UX
-    checkShouldAutoScroll();
-    console.log('shouldAutoScroll', shouldAutoScroll);
-    if (!isStreaming && displayMessages.length > 0) {
-      // Only scroll to bottom if not streaming and we have messages
-      scrollToBottom();
-      
-      // Mark the current scroll position for future reference
-      const currentScrollY = window.scrollY;
-      const currentScrollHeight = document.body.scrollHeight;
-      
-      // Store these values temporarily to help with scrolling optimization
-      sessionStorage.setItem('scrollPosition', currentScrollY.toString());
-      sessionStorage.setItem('scrollHeight', currentScrollHeight.toString());
-    } else if (isStreaming && shouldAutoScroll) {
-      // During streaming, respect user's scroll position preference
-      // Only auto-scroll if they haven't manually scrolled away
-      if (shouldAutoScroll) {
-        scrollToBottom();
-      } else {
-        console.log('User has scrolled away, respecting scroll position during streaming');
-      }
-    }
-  }, [displayMessages, isStreaming, streamingResponse, shouldAutoScroll]);
+    scrollToBottomGently();
+  }, [displayMessages, isStreaming, streamingResponse, scrollToBottomGently]);
 
   // Apply scroll position preservation after any state update that might affect layout
   useEffect(() => {    
@@ -389,20 +287,7 @@ export default function Messages(): React.ReactElement {
       // Use precise restoration timing
       restoreScrollPosition();
     }
-    // Otherwise, check if we should auto-scroll based on user's position
-    else if (displayMessages.length > 0 || isStreaming) {
-      if (shouldAutoScroll) {
-        scrollToBottom();
-      }
-    }
-    
-    // After any major state update that affects messages, maintain scroll position if we're in transition
-    return () => {
-      if (isTransitioningRef.current) {
-        saveScrollPosition();
-      }
-    };
-  }, [displayMessages, shouldAutoScroll, scrollToBottom, restoreScrollPosition, saveScrollPosition]);
+  }, [displayMessages, restoreScrollPosition]);
 
   // Log when streaming starts or stops - helpful for debugging
   
@@ -412,14 +297,8 @@ export default function Messages(): React.ReactElement {
       console.log('🎬 Streaming started');
       isTransitioningRef.current = false;
       
-      // Only force scroll to bottom when streaming first starts,
-      // but honor user scroll position after that
-      if (userScrollTimestampRef.current === 0) { // No manual scroll yet
-        scrollToBottom();
-      } else {
-        // After streaming has started, don't override user scroll
-        checkShouldAutoScroll();
-      }
+      // Gentle scroll when streaming starts
+      scrollToBottomGently();
       
       // Release any scroll locks that might have been applied
       preventScrollJump.current = false;
@@ -460,7 +339,7 @@ export default function Messages(): React.ReactElement {
         window.clearTimeout(lastStreamingTimerRef.current);
       }
     };
-  }, [isStreaming, streamingResponse, streamingId, checkShouldAutoScroll]);
+  }, [isStreaming, streamingResponse, streamingId]);
 
   // Handle loading and error states
   if (loading && displayMessages.length === 0) {
@@ -502,33 +381,62 @@ export default function Messages(): React.ReactElement {
         className="flex-1 w-full px-4 py-4 space-y-4 overflow-y-auto h-full"
       >
         <AnimatePresence initial={false}>
-          {displayMessages.map((message) => (
-            <motion.div
-              key={message.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className={`px-4 py-2 rounded-lg text-left break-words break-all whitespace-pre-wrap ${message.role === "user" ? "text-white ml-auto" : "mr-auto text-[var(--text-primary)]"}`}
-              style={{
-                maxWidth: "66%",
-                width: message.content.length < 35 ? "fit-content" : "auto", // Use auto for wider messages
-                minWidth: "4rem",
-                backgroundColor: message.role === "user" ? "var(--theme-color)" : "var(--chat-bubble)",
-                border: "none",
-                outline: "none",
-                boxShadow: "none"
-              }}
-            >
-              <p>{message.content}</p>
-              <div className="text-xs opacity-70 text-right mt-1">
-                {message.isStreaming ? (
-                  <><span className="inline-block animate-pulse">●</span> Typing...</>
-                ) : message.timestamp}
-              </div>
-            </motion.div>
-          ))}
+          {displayMessages.map((message) => {
+            const parsedMessage = parseThinkingMessage(message.content);
+            
+            return (
+              <motion.div
+                key={message.id}
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className={`flex flex-col ${message.role === "user" ? "ml-auto" : "mr-auto"}`}
+                style={{
+                  maxWidth: "66%",
+                  width: message.content.length < 35 ? "fit-content" : "auto",
+                  minWidth: "4rem"
+                }}
+              >
+                {/* Thinking dropdown for assistant messages with thinking content */}
+                {message.role === "assistant" && parsedMessage.hasThinking && parsedMessage.thinkingContent && (
+                  <ThinkingDropdown 
+                    thinkingContent={parsedMessage.thinkingContent}
+                    className="mb-2"
+                  />
+                )}
+                
+                {/* Main message bubble */}
+                <div
+                  className={`px-4 py-3 rounded-lg text-left ${message.role === "user" ? "text-white" : "text-[var(--text-primary)]"}`}
+                  style={{
+                    backgroundColor: message.role === "user" ? "var(--theme-color)" : "var(--chat-bubble)",
+                    border: "none",
+                    outline: "none",
+                    boxShadow: "none"
+                  }}
+                >
+                  {message.role === "user" ? (
+                    <div className="whitespace-pre-wrap break-words">
+                      {parsedMessage.displayContent}
+                    </div>
+                  ) : (
+                    <MarkdownRenderer 
+                      content={parsedMessage.displayContent}
+                      className="prose prose-sm max-w-none"
+                    />
+                  )}
+                  
+                  <div className="text-xs opacity-70 text-right mt-2">
+                    {message.isStreaming ? (
+                      <><span className="inline-block animate-pulse">●</span> Typing...</>
+                    ) : message.timestamp}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
 
           {/* We no longer need separate streaming message rendering as it's integrated in the message array */}
         </AnimatePresence>

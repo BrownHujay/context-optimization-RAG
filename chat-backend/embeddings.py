@@ -1,11 +1,12 @@
 # embeddings.py
+print("hi")
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-
+print("this worked hi")
 # Load model (768 dim, optimized for English)
 model = SentenceTransformer('BAAI/bge-base-en-v1.5')
-
+print("odge")
 # Prepend instruction as per model design
 def get_embedding(text: str):
     instruction = "Represent this sentence for retrieval: "

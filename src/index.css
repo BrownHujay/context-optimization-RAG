@@ -43,6 +43,21 @@
   /* Chat bubble for assistant messages - NO BORDERS */
   --chat-bubble: #ffffff;
   --chat-bubble-border: transparent;
+  
+  /* Thinking dropdown */
+  --thinking-bg: #f8f9fa;
+  --thinking-hover: #f1f3f4;
+  --thinking-text-color: #374151;
+  --thinking-icon-color: #6b7280;
+  --thinking-content-bg: #ffffff;
+  --thinking-content-text: #1f2937;
+  
+  /* Markdown components */
+  --code-bg: #f8f9fa;
+  --code-header-bg: #e5e7eb;
+  --code-text: #1f2937;
+  --inline-code-bg: #f3f4f6;
+  --blockquote-bg: #f9fafb;
 }
 
 /* Dark mode colors */
@@ -59,6 +74,21 @@
   --text-tertiary: #9ca3af;
   
   --border-color: #3a3a3a;
+  
+  /* Thinking dropdown - dark mode */
+  --thinking-bg: #2a2a2a;
+  --thinking-hover: #333333;
+  --thinking-text-color: #e5e7eb;
+  --thinking-icon-color: #9ca3af;
+  --thinking-content-bg: #1f1f1f;
+  --thinking-content-text: #f9fafb;
+  
+  /* Markdown components - dark mode */
+  --code-bg: #1f1f1f;
+  --code-header-bg: #2a2a2a;
+  --code-text: #e5e7eb;
+  --inline-code-bg: #2a2a2a;
+  --blockquote-bg: #242424;
 }
 
 /* Theme color classes */

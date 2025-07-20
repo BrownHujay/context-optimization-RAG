@@ -9,7 +9,9 @@ import json
 import logging
 from typing import AsyncGenerator, Optional
 
-from api.routes.chat import run_llm_stream, build_prompt, get_recent_messages, get_account, get_chat
+from api.routes.chat import chat_stream, get_recent_messages, get_account, get_chat
+from prompt_builders import build_model_specific_prompt
+from llm import get_model_path
 from db import update_message  # For updating the original message
 
 router = APIRouter(prefix="/http", tags=["HTTP Streaming"])
@@ -24,6 +26,12 @@ class StreamRequest(BaseModel):
 @router.post("/stream")
 async def http_stream_chat(request: StreamRequest):
     """Stream chat response using HTTP streaming - more reliable than WebSockets"""
+    print(f"\n🌊 POST /http/stream called!")
+    print(f"Message: '{request.message}'")
+    print(f"Account ID: {request.account_id}")
+    print(f"Conversation ID: {request.conversation_id}")
+    print(f"Original Message ID: '{request.original_message_id}'")
+    
     try:
         # Verify account and chat
         account = get_account(request.account_id)
@@ -42,25 +50,52 @@ async def http_stream_chat(request: StreamRequest):
                 media_type="application/json"
             )
         
-        # User message is already stored by POST /messages, original_message_id is provided in request.
-        # We will update that message with the full response later.
+        # Handle message creation - if original_message_id is a temp ID, we need to create the message first
+        real_message_id = request.original_message_id
+        if request.original_message_id.startswith('temp-'):
+            print(f"⚠️  Frontend sent temp ID, creating message in database first...")
+            try:
+                from db import store_message
+                result = store_message(
+                    request.account_id,
+                    request.conversation_id,
+                    request.message,
+                    "",  # Empty response for now
+                    None,  # faiss_id
+                    None,  # summary  
+                    None   # title
+                )
+                if result and result.inserted_id:
+                    real_message_id = str(result.inserted_id)
+                    print(f"✅ Created message with real ID: {real_message_id}")
+                else:
+                    print(f"❌ Failed to create message")
+                    # Continue with temp ID, update will handle gracefully
+            except Exception as e:
+                print(f"❌ Error creating message: {e}")
+                # Continue with temp ID, update will handle gracefully
         
         # Build prompt with context
         recent = get_recent_messages(request.conversation_id, as_dict=True)
-        prompt = build_prompt(
+        model_profile = chat.get("model_profile", "default")
+        model_path = get_model_path(model_profile)
+        
+        # Build model-specific prompt (all models now return strings)
+        prompt = build_model_specific_prompt(
             message=request.message,
             recent=recent,
             retrieved=[],  # Simplified for now
-            system_prompt=account.get("system_prompt")
+            system_prompt=account.get("system_prompt"),
+            model_path=model_path
         )
         
-        # Return streaming response
+        # Return streaming response with the real message ID
         return StreamingResponse(
             stream_llm_response(
                 prompt, 
                 request.account_id,
                 request.conversation_id,
-                request.original_message_id,  # Pass the original message ID
+                real_message_id,  # Use real MongoDB ObjectId if we created one
                 chat.get("model_profile", "default")
             ),
             media_type="text/event-stream"
@@ -147,6 +182,11 @@ async def stream_llm_response(
         yield f"data: {complete_event}\n\n".encode('utf-8')
         
         # Update the original message with the assistant's full response and title
+        logger.info(f"\n=== ATTEMPTING MESSAGE UPDATE ===")
+        logger.info(f"original_message_id: {original_message_id}")
+        logger.info(f"full_response length: {len(full_response)}")
+        logger.info(f"title: {title}")
+        
         if original_message_id:
             update_data = {
                 "response": full_response,
@@ -155,17 +195,27 @@ async def stream_llm_response(
             # Filter out None values or empty strings for title to avoid overwriting with empty data
             update_data_cleaned = {k: v for k, v in update_data.items() if v is not None and v != ""}
             
+            logger.info(f"Update data to send: {list(update_data_cleaned.keys())}")
+            
             if update_data_cleaned:
                 try:
-                    update_message(
+                    result = update_message(
                         message_id=original_message_id,
                         **update_data_cleaned
                     )
-                    logger.info(f"Updated message {original_message_id} with full response and title.")
+                    logger.info(f"Update message result: {result}")
+                    if result:
+                        logger.info(f"✅ Successfully updated message {original_message_id}")
+                    else:
+                        logger.error(f"❌ Update returned None/False for message {original_message_id}")
                 except Exception as e:
-                    logger.exception(f"Error updating message {original_message_id}: {e}")
+                    logger.exception(f"❌ Error updating message {original_message_id}: {e}")
+            else:
+                logger.warning(f"No valid update data for message {original_message_id}")
         else:
-            logger.warning("original_message_id was not provided to stream_llm_response. Cannot update message.")
+            logger.warning("❌ original_message_id was not provided to stream_llm_response. Cannot update message.")
+        
+        logger.info(f"=== MESSAGE UPDATE COMPLETE ===")
         
     except Exception as e:
         logger.exception(f"Error in stream_llm_response: {e}")

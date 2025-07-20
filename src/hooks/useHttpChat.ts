@@ -16,7 +16,7 @@ export interface UseHttpChatResult {
   isStreaming: boolean;
   error: string | null;
   streamingId: string | null; // Add streamingId to track which message is being streamed
-  sendMessage: (message: string, originalMessageId?: string) => Promise<boolean>;
+  sendMessage: (message: string, originalMessageId?: string, model?: string) => Promise<boolean>;
   resetStream: () => void;
   cancelMessage: () => void;
   summary: {
@@ -64,7 +64,8 @@ export function useHttpChat(accountId: string, conversationId: string): UseHttpC
    */
   const sendMessage = useCallback(async (
     message: string,
-    originalMessageId?: string
+    originalMessageId?: string,
+    model?: string
   ): Promise<boolean> => {
     console.log('📤 Sending message:', message);
     if (!message.trim()) {
@@ -110,7 +111,8 @@ export function useHttpChat(accountId: string, conversationId: string): UseHttpC
           message,
           account_id: accountId, 
           conversation_id: conversationId,
-          original_message_id: originalMessageId || undefined
+          original_message_id: originalMessageId || undefined,
+          model: model || 'default'
         }),
         signal: controller.signal
       });

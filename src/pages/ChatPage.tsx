@@ -10,7 +10,7 @@ import { useMessages } from "../hooks";
 export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { activeChat, setActiveChat, chats, loading } = useChat();
+  const { activeChat, setActiveChat, chats, loading, updateChatTitle } = useChat();
   const { currentUser } = useAuth();
   const accountId = currentUser?.id || '';
   
@@ -20,62 +20,89 @@ export default function ChatPage() {
   // Handle pending message from localStorage if it exists
   const { sendMessage, setSession } = useStreamingChat();
 
+  // Set up chat session when ID changes
   useEffect(() => {
     if (accountId && id) {
       setSession(accountId, id); // Initializes your chat session 🎉
     }
-  }, [accountId, id]);
+  }, [accountId, id, setSession]);
 
-  const { refreshMessages } = useMessages(accountId, id || '');
+  const { refreshMessages, addMessage } = useMessages(accountId, id || '');
   
   // Set active chat when ID changes and handle any pending message
   useEffect(() => {
-    if (id && chats.length > 0) {
-      const chat = chats.find(c => c.id === id);
-      if (chat) {
-        setActiveChat(chat);
-        console.log(`🔄 Active chat set to: ${chat.title} (${chat.id})`);
+    // Make sure we have an ID and chats have loaded
+    if (!id || chats.length === 0) return;
+    
+    // Find the chat that matches the URL parameter
+    const chat = chats.find(c => c.id === id);
+    
+    if (chat) {
+      console.log(`🔄 CHATPAGE: Setting active chat: ${chat.title} (${chat.id})`);
+      setActiveChat(chat);
+
+      // Only process pending messages if we haven't done so already
+      if (!pendingMessageHandled) {
+        // Mark as handled immediately to prevent multiple processing
+        setPendingMessageHandled(true);
         
-        // Check for pending message after direct navigation
-        if (!pendingMessageHandled) {
-          const pendingChatId = localStorage.getItem('pendingChatId');
-          const pendingMessage = localStorage.getItem('pendingUserMessage');
+        // Check if there's a pending message for this chat
+        const pendingChatId = localStorage.getItem('pendingChatId');
+        const pendingMessage = localStorage.getItem('pendingUserMessage');
+        
+        console.log(`🔄 CHATPAGE: Checking for pending message: ${pendingChatId === id ? 'FOUND' : 'NONE'}`);
+        
+        // Only process if the pending message is for this chat
+        if (pendingChatId === id && pendingMessage) {
+          console.log(`🔄 CHATPAGE: Processing pending message: ${pendingMessage.substring(0, 20)}...`);
           
-          if (pendingChatId === id && pendingMessage) {
-            console.log(`🔥 Found pending message for chat ${id}: ${pendingMessage}`);
-            
-            // Force an immediate refresh to ensure user message is displayed
-            (async () => {
-              try {
-                console.log('⚡ Refreshing messages...');
-                await refreshMessages();
-                
-                // Start the streaming process
-                console.log('🎬 Starting streaming response for pending message...');
-                await sendMessage(pendingMessage);
-                
-                // Clear the pending message
-                localStorage.removeItem('pendingUserMessage');
-                localStorage.removeItem('pendingChatId');
-                setPendingMessageHandled(true);
-              } catch (err) {
-                console.error('Failed to process pending message:', err);
+          // Process after a short delay to ensure chat state is ready
+          setTimeout(async () => {
+            try {
+              // Step 1: Save the user message
+              const userMsgId = await addMessage(pendingMessage, 'user');
+              if (!userMsgId) {
+                throw new Error('Failed to save user message');
               }
-            })();
-          }
+              
+              // Step 2: Refresh messages to show the user message
+              await refreshMessages();
+              
+              // Step 3: Clear pending message data right away to prevent duplicates
+              localStorage.removeItem('pendingUserMessage');
+              localStorage.removeItem('pendingChatId');
+              
+              // Step 4: Start streaming the AI response
+              await sendMessage(pendingMessage, userMsgId);
+              
+              // Step 5: Update chat title based on message content
+              if (typeof updateChatTitle === 'function') {
+                try {
+                  const words = pendingMessage.split(' ');
+                  const shortTitle = words.slice(0, 3).join(' ') + 
+                    (words.length > 3 ? '...' : '');
+                  await updateChatTitle(id, shortTitle);
+                } catch (err) {
+                  console.error('Failed to update chat title:', err);
+                }
+              }
+            } catch (err) {
+              console.error('Error processing pending message:', err);
+              alert('There was a problem processing your message.');
+            }
+          }, 500); // Longer delay to ensure everything is ready
         }
-      } else {
-        // Chat not found, redirect to home
-        console.log(`⚠️ Chat with ID ${id} not found, redirecting to home`);
-        navigate('/');
       }
+    } else {
+      console.warn(`⚠️ Chat not found: ${id}, redirecting to homepage`);
+      navigate('/');
     }
     
     // Cleanup - reset title when unmounting
     return () => {
       document.title = 'Chat App';
     };
-  }, [id, chats, setActiveChat, navigate, sendMessage, refreshMessages, pendingMessageHandled]);
+  }, [id, chats, pendingMessageHandled, navigate, setActiveChat, addMessage, refreshMessages, sendMessage]);
   
   // Loading state
   if (loading) {

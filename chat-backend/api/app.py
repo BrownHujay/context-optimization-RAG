@@ -1,12 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+print("this worked too")
 from api.routes.accounts import router as accounts_router
+print("1")
 from api.routes.chats import router as chats_router
+print("2")
 from api.routes.messages import router as messages_router
+print("3")
 from api.routes.chat import router as chat_router
+print("4")
 from api.routes.graph import router as graph_router
+print("5")
 from api.routes.http_stream import router as http_stream_router
+print("6")
 
 def create_app():
     # Initialize the FastAPI app
